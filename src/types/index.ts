@@ -16,6 +16,38 @@ export interface PageResult<T> {
   totalPages: number
 }
 
+/** 游标分页请求（任务5深分页优化，传 lastId 替代 OFFSET） */
+export interface CursorPageParams {
+  lastId?: number
+  size?: number
+}
+
+// ===========================
+// 后端错误码枚举（与 ErrorCode.java 保持一致）
+// ===========================
+export const ErrorCodes = {
+  SUCCESS: 200,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  INTERNAL_ERROR: 500,
+  RATE_LIMIT_EXCEEDED: 429,   // 限流触发
+  USER_NOT_FOUND: 1001,
+  USER_ALREADY_EXISTS: 1002,
+  INVALID_PASSWORD: 1003,
+  ACCOUNT_DISABLED: 1004,
+  TOKEN_EXPIRED: 1005,
+  TOKEN_INVALID: 1006,
+  ORDER_NOT_FOUND: 1101,
+  ORDER_STATUS_INVALID: 1102,
+  ORDER_CREATE_BUSY: 1103,    // 分布式锁：5s内重复提交
+  STOCK_INSUFFICIENT: 1201,
+  ACTIVITY_NOT_STARTED: 1202,
+  ACTIVITY_ENDED: 1203,
+  USER_ALREADY_PURCHASED: 1204,
+} as const
+
 // ===========================
 // User Types
 // ===========================

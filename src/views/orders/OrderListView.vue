@@ -177,25 +177,42 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleCreateOrder">创建订单</el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          :disabled="orderCreateLimited"
+          @click="handleCreateOrder"
+        >
+          <template v-if="orderCreateLimited">
+            <el-icon class="is-loading"><Timer /></el-icon>
+            请 {{ orderCreateCountdown }} 秒后重试
+          </template>
+          <template v-else>
+            创建订单
+          </template>
+        </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Refresh } from '@element-plus/icons-vue'
+import { Plus, Search, Refresh, Timer } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import dayjs from 'dayjs'
 import { useOrderApi } from '@/api/orders'
+import { useRateLimit } from '@/composables/useRateLimit'
 import type { Order, OrderStatus } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const { getOrders, createOrder, payOrder, cancelOrder } = useOrderApi()
+
+// 订单创建防重复提交（对应后端 Redisson 分布式锁：同一用户5秒内禁止重复提交）
+const { isLimited: orderCreateLimited, countdown: orderCreateCountdown, startCountdown: startOrderLock } = useRateLimit()
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -310,6 +327,7 @@ function openCreateDialog() {
 }
 
 async function handleCreateOrder() {
+  if (orderCreateLimited.value) return
   if (!formRef.value) return
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
@@ -324,6 +342,11 @@ async function handleCreateOrder() {
     ElMessage.success('订单创建成功')
     dialogVisible.value = false
     fetchOrders()
+  } catch (err: unknown) {
+    // 后端 Redisson 分布式锁触发：同一用户5秒内禁止重复提交
+    if ((err as { isRateLimit?: boolean })?.isRateLimit) {
+      startOrderLock(5)
+    }
   } finally {
     submitting.value = false
   }

@@ -26,6 +26,7 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
+      // 代理到升级后的 reference-up 后端（端口不变，依然 8080）
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,

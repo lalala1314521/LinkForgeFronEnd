@@ -84,11 +84,29 @@
             size="large"
             class="submit-btn"
             :loading="loading"
+            :disabled="isLimited"
             @click="handleRegister"
           >
-            {{ loading ? '注册中...' : '立即注册' }}
+            <template v-if="isLimited">
+              <el-icon class="is-loading"><Timer /></el-icon>
+              {{ limitText }}
+            </template>
+            <template v-else>
+              {{ loading ? '注册中...' : '立即注册' }}
+            </template>
           </el-button>
         </el-form>
+
+        <!-- 限流提示（后端注册接口：10次/小时/IP 限制） -->
+        <el-alert
+          v-if="isLimited"
+          class="rate-limit-alert"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="注册请求受限"
+          :description="`注册接口限频 10次/小时，请勿频繁注册。${limitText}`"
+        />
 
         <div class="form-footer">
           <span class="footer-text">已有账户？</span>
@@ -105,12 +123,16 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock, EditPen, Phone, Message } from '@element-plus/icons-vue'
+import { User, Lock, EditPen, Phone, Message, Timer } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useUserApi } from '@/api/users'
+import { useRateLimit } from '@/composables/useRateLimit'
 
 const router = useRouter()
 const { createUser } = useUserApi()
+
+// 限流倒计时（后端注册接口：10次/小时/IP）
+const { isLimited, limitText, startCountdown } = useRateLimit()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -147,6 +169,7 @@ const rules: FormRules = {
 }
 
 async function handleRegister() {
+  if (isLimited.value) return
   if (!formRef.value) return
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
@@ -164,6 +187,11 @@ async function handleRegister() {
     await createUser(payload as Parameters<typeof createUser>[0])
     ElMessage.success('注册成功，请登录')
     router.push('/login')
+  } catch (err: unknown) {
+    // 429 限流：启动3600秒倒计时（10次/小时）
+    if ((err as { isRateLimit?: boolean })?.isRateLimit) {
+      startCountdown(3600)
+    }
   } finally {
     loading.value = false
   }
@@ -283,5 +311,10 @@ async function handleRegister() {
 .footer-text {
   color: var(--text-secondary);
   font-size: 13px;
+}
+
+.rate-limit-alert {
+  margin-top: 12px;
+  border-radius: var(--radius-sm) !important;
 }
 </style>

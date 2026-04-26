@@ -296,7 +296,7 @@ src/
 
   启动步骤
 
-  cd F:/vscode/referenceFrontEnd
+  cd F:/vscode/referenceFrontEndUp
   npm install
   npm run dev
   # 访问 http://localhost:3000

@@ -58,11 +58,29 @@
             size="large"
             class="submit-btn"
             :loading="loading"
+            :disabled="isLimited"
             @click="handleLogin"
           >
-            {{ loading ? '登录中...' : '立即登录' }}
+            <template v-if="isLimited">
+              <el-icon class="is-loading"><Timer /></el-icon>
+              {{ limitText }}
+            </template>
+            <template v-else>
+              {{ loading ? '登录中...' : '立即登录' }}
+            </template>
           </el-button>
         </el-form>
+
+        <!-- 限流提示（后端 5次/分钟/IP 限制） -->
+        <el-alert
+          v-if="isLimited"
+          class="rate-limit-alert"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="登录请求过于频繁"
+          :description="`为保护账户安全，登录接口限频 5次/分钟。${limitText}`"
+        />
 
         <div class="form-footer">
           <span class="footer-text">还没有账户？</span>
@@ -96,15 +114,19 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock } from '@element-plus/icons-vue'
+import { User, Lock, Timer } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useAuthApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
+import { useRateLimit } from '@/composables/useRateLimit'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const { login } = useAuthApi()
+
+// 限流倒计时（后端登录接口：5次/分钟/IP）
+const { isLimited, limitText, startCountdown } = useRateLimit()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -125,6 +147,7 @@ function fillDemo(username: string, password: string) {
 }
 
 async function handleLogin() {
+  if (isLimited.value) return
   if (!formRef.value) return
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
@@ -137,6 +160,11 @@ async function handleLogin() {
 
     const redirect = route.query.redirect as string
     router.push(redirect || '/dashboard')
+  } catch (err: unknown) {
+    // 429 限流：启动60秒倒计时（5次/分钟）
+    if ((err as { isRateLimit?: boolean })?.isRateLimit) {
+      startCountdown(60)
+    }
   } finally {
     loading.value = false
   }
@@ -278,6 +306,11 @@ async function handleLogin() {
 
 .demo-hint {
   margin-top: 16px;
+  border-radius: var(--radius-sm) !important;
+}
+
+.rate-limit-alert {
+  margin-top: 12px;
   border-radius: var(--radius-sm) !important;
 }
 
