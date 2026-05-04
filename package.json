@@ -1,5 +1,5 @@
 {
-  "name": "reference-frontend",
+  "name": "link-forge-frontend",
   "version": "2.0.0",
   "private": true,
   "description": "Reference Management System Frontend - Vue3 + TypeScript (升级版)",
