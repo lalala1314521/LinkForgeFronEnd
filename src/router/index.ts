@@ -52,6 +52,27 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/orders/OrderDetailView.vue'),
         meta: { title: '订单详情', hidden: true },
       },
+      // Product management
+      {
+        path: 'products',
+        name: 'ProductList',
+        component: () => import('@/views/products/ProductListView.vue'),
+        meta: { title: '商品管理', icon: 'Goods' },
+      },
+      // Coupon center
+      {
+        path: 'coupons',
+        name: 'CouponCenter',
+        component: () => import('@/views/coupons/CouponCenterView.vue'),
+        meta: { title: '优惠券中心', icon: 'Ticket' },
+      },
+      // Seckill
+      {
+        path: 'seckill',
+        name: 'Seckill',
+        component: () => import('@/views/seckill/SeckillView.vue'),
+        meta: { title: '秒杀活动', icon: 'Clock' },
+      },
       // Profile
       {
         path: 'profile',
@@ -65,6 +86,8 @@ const routes: RouteRecordRaw[] = [
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/error/NotFoundView.vue'),
+    // 修复功能 bug：未登录访问任意错误 URL 应显示 404，而不是被弹回登录页
+    meta: { requiresAuth: false, title: '页面不存在' },
   },
 ]
 

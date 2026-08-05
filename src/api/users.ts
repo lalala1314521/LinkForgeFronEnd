@@ -20,6 +20,7 @@ export function useUserApi() {
   const getUsers = (params?: UserQueryParams) =>
     get<PageResult<User>>('/users', params as Record<string, unknown>)
 
+  /** 后端 UserUpdateRequest 无 password，仅更新昵称/手机号/邮箱 */
   const updateUser = (id: number, data: UpdateUserRequest) =>
     put<void>(`/users/${id}`, data)
 

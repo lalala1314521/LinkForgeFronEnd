@@ -1,9 +1,7 @@
 <template>
   <div class="user-detail-page">
     <!-- Back Button -->
-    <div class="back-nav">
-      <el-button :icon="ArrowLeft" link @click="$router.back()">返回用户列表</el-button>
-    </div>
+    <PageHeader title="用户详情" back back-text="返回用户列表" />
 
     <div v-if="loading" class="loading-wrapper">
       <el-skeleton :rows="8" animated />
@@ -14,18 +12,19 @@
         <!-- Profile Card -->
         <div class="app-card profile-card">
           <div class="profile-avatar-wrap">
-            <el-avatar :size="80" :style="{ background: avatarColor, fontSize: '32px' }">
-              {{ user.username[0].toUpperCase() }}
-            </el-avatar>
+            <AppAvatar :name="user.nickname || user.username" :size="80" />
             <div class="profile-info">
               <h2 class="profile-name">{{ user.nickname || user.username }}</h2>
               <span class="profile-username">@{{ user.username }}</span>
             </div>
           </div>
 
-          <el-tag :type="getStatusType(user.status)" class="status-tag" round>
-            {{ statusMap[user.status] }}
-          </el-tag>
+          <div class="profile-tags">
+            <StatusTag :status="user.status" :map="USER_STATUS" size="large" />
+            <el-tag :type="user.role === 'ADMIN' ? 'warning' : 'info'" round>
+              {{ user.role === 'ADMIN' ? '管理员' : '普通用户' }}
+            </el-tag>
+          </div>
 
           <el-divider />
 
@@ -33,6 +32,10 @@
             <div class="detail-field">
               <span class="field-label">用户 ID</span>
               <span class="field-value">#{{ user.id }}</span>
+            </div>
+            <div class="detail-field">
+              <span class="field-label">角色</span>
+              <span class="field-value">{{ user.role === 'ADMIN' ? '管理员' : '普通用户' }}</span>
             </div>
             <div class="detail-field">
               <span class="field-label">手机号</span>
@@ -44,11 +47,11 @@
             </div>
             <div class="detail-field">
               <span class="field-label">注册时间</span>
-              <span class="field-value">{{ formatDate(user.createdAt) }}</span>
+              <span class="field-value">{{ formatDateTime(user.createdAt) }}</span>
             </div>
             <div class="detail-field">
               <span class="field-label">最后更新</span>
-              <span class="field-value">{{ formatDate(user.updatedAt) }}</span>
+              <span class="field-value">{{ formatDateTime(user.updatedAt) }}</span>
             </div>
           </div>
 
@@ -95,48 +98,49 @@
             </el-button>
           </div>
 
-          <el-table
-            v-loading="ordersLoading"
-            :data="userOrders"
-            stripe
-          >
-            <el-table-column prop="orderNo" label="订单号" min-width="150">
-              <template #default="{ row }">
-                <el-button link type="primary" @click="$router.push(`/orders/${row.id}`)">
-                  {{ row.orderNo }}
-                </el-button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="totalAmount" label="金额" width="120">
-              <template #default="{ row }">
-                <span class="amount">¥ {{ Number(row.totalAmount).toFixed(2) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getOrderStatusType(row.status)" size="small" round>
-                  {{ orderStatusMap[row.status] }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="createdAt" label="时间" width="140">
-              <template #default="{ row }">
-                {{ formatDate(row.createdAt) }}
-              </template>
-            </el-table-column>
-          </el-table>
+          <template v-if="!ordersLoading && userOrders.length === 0">
+            <EmptyState description="该用户暂无订单" />
+          </template>
+          <template v-else>
+            <el-table
+              v-loading="ordersLoading"
+              :data="userOrders"
+              stripe
+            >
+              <el-table-column prop="orderNo" label="订单号" min-width="150">
+                <template #default="{ row }">
+                  <el-button link type="primary" @click="$router.push(`/orders/${row.id}`)">
+                    {{ row.orderNo }}
+                  </el-button>
+                </template>
+              </el-table-column>
+              <el-table-column prop="finalAmount" label="实付金额" width="120">
+                <template #default="{ row }">
+                  <span class="amount">{{ formatAmount(row.finalAmount ?? row.totalAmount) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="status" label="状态" width="100">
+                <template #default="{ row }">
+                  <StatusTag :status="row.status" :map="ORDER_STATUS" size="small" />
+                </template>
+              </el-table-column>
+              <el-table-column prop="createdAt" label="时间" width="140">
+                <template #default="{ row }">
+                  {{ formatDate(row.createdAt) }}
+                </template>
+              </el-table-column>
+            </el-table>
 
-          <el-empty v-if="!ordersLoading && userOrders.length === 0" description="该用户暂无订单" />
-
-          <el-pagination
-            v-if="orderTotal > orderPageSize"
-            v-model:current-page="orderPage"
-            :page-size="orderPageSize"
-            :total="orderTotal"
-            layout="prev, pager, next"
-            @current-change="fetchUserOrders"
-            style="margin-top: 12px"
-          />
+            <el-pagination
+              v-if="orderTotal > orderPageSize"
+              v-model:current-page="orderPage"
+              :page-size="orderPageSize"
+              :total="orderTotal"
+              layout="prev, pager, next"
+              @current-change="fetchUserOrders"
+              style="margin-top: 12px"
+            />
+          </template>
         </div>
       </div>
     </template>
@@ -152,7 +156,7 @@
       </template>
     </el-result>
 
-    <!-- Edit Dialog -->
+    <!-- Edit Dialog（不传 password，后端 UserUpdateRequest 无该字段） -->
     <el-dialog
       v-model="editDialogVisible"
       title="编辑用户信息"
@@ -169,9 +173,6 @@
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="editForm.email" placeholder="可选" />
         </el-form-item>
-        <el-form-item label="新密码" prop="password">
-          <el-input v-model="editForm.password" type="password" show-password placeholder="不填则不修改" />
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="editDialogVisible = false">取消</el-button>
@@ -182,15 +183,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Edit, Delete, CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { Edit, Delete, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
-import dayjs from 'dayjs'
+import PageHeader from '@/components/PageHeader.vue'
+import StatusTag from '@/components/StatusTag.vue'
+import AppAvatar from '@/components/AppAvatar.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useUserApi } from '@/api/users'
 import { useOrderApi } from '@/api/orders'
-import type { User, Order, UserStatus } from '@/types'
+import { USER_STATUS, ORDER_STATUS } from '@/constants/statusMaps'
+import { formatDate, formatDateTime, formatAmount } from '@/utils/format'
+import type { User, Order, UserStatus, UpdateUserRequest } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -214,45 +220,11 @@ const editForm = reactive({
   nickname: '',
   phone: '',
   email: '',
-  password: '',
 })
 
 const editRules: FormRules = {
   phone: [{ pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }],
   email: [{ type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }],
-  password: [
-    {
-      validator: (_r, v: string, cb) => {
-        if (v && v.length < 8) cb(new Error('密码至少8位'))
-        else if (v && !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(v)) cb(new Error('必须含大小写字母和数字'))
-        else cb()
-      },
-      trigger: 'blur',
-    },
-  ],
-}
-
-const statusMap: Record<string, string> = { ACTIVE: '活跃', DISABLED: '禁用', DELETED: '已删除' }
-const orderStatusMap: Record<string, string> = {
-  PENDING: '待支付', PAID: '已支付', SHIPPED: '已发货', COMPLETED: '已完成', CANCELLED: '已取消'
-}
-
-const avatarColors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#6554C0', '#00B4D8']
-const avatarColor = computed(() => {
-  if (!user.value) return '#409EFF'
-  return avatarColors[user.value.username.charCodeAt(0) % avatarColors.length]
-})
-
-function getStatusType(s: string) {
-  return ({ ACTIVE: 'success', DISABLED: 'warning', DELETED: 'danger' }[s] || 'info') as 'success' | 'warning' | 'danger' | 'info'
-}
-
-function getOrderStatusType(s: string) {
-  return ({ PENDING: 'warning', PAID: 'primary', SHIPPED: 'info', COMPLETED: 'success', CANCELLED: 'danger' }[s] || 'info') as 'warning' | 'primary' | 'info' | 'success' | 'danger'
-}
-
-function formatDate(d: string) {
-  return dayjs(d).format('YYYY-MM-DD HH:mm')
 }
 
 async function fetchUser() {
@@ -283,7 +255,6 @@ function openEditDialog() {
     nickname: user.value.nickname || '',
     phone: user.value.phone || '',
     email: user.value.email || '',
-    password: '',
   })
   editDialogVisible.value = true
 }
@@ -295,11 +266,10 @@ async function handleEditSubmit() {
 
   editSubmitting.value = true
   try {
-    const payload: Record<string, string> = {}
+    const payload: UpdateUserRequest = {}
     if (editForm.nickname) payload.nickname = editForm.nickname
     if (editForm.phone) payload.phone = editForm.phone
     if (editForm.email) payload.email = editForm.email
-    if (editForm.password) payload.password = editForm.password
 
     await updateUser(userId, payload)
     ElMessage.success('用户信息已更新')
@@ -311,8 +281,7 @@ async function handleEditSubmit() {
 }
 
 async function handleStatusChange(status: UserStatus) {
-  const actionMap = { ACTIVE: '启用', DISABLED: '禁用' }
-  const action = actionMap[status] || '修改'
+  const action = status === 'ACTIVE' ? '启用' : status === 'DISABLED' ? '禁用' : '修改'
   await ElMessageBox.confirm(`确定要${action}该账户吗？`, '确认操作', { type: 'warning' })
   await updateUserStatus(userId, status)
   ElMessage.success(`账户已${action}`)
@@ -341,11 +310,6 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.back-nav {
-  display: flex;
-  align-items: center;
 }
 
 .loading-wrapper {
@@ -380,7 +344,11 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 
-.profile-info {}
+.profile-tags {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 
 .profile-name {
   font-size: 18px;
@@ -391,10 +359,6 @@ onMounted(async () => {
 .profile-username {
   font-size: 13px;
   color: var(--text-secondary);
-}
-
-.status-tag {
-  align-self: flex-start;
 }
 
 .detail-fields {
@@ -430,8 +394,6 @@ onMounted(async () => {
   width: 100%;
   justify-content: center;
 }
-
-.orders-card {}
 
 .card-header {
   display: flex;

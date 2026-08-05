@@ -20,6 +20,7 @@
 </template>
 
 <script setup lang="ts">
+import { DocumentDelete } from '@element-plus/icons-vue'
 </script>
 
 <style scoped>
@@ -39,7 +40,8 @@
 .error-code {
   font-size: 100px;
   font-weight: 900;
-  background: linear-gradient(135deg, #409EFF, #6554C0);
+  /* 渐变收敛为 --gradient-brand */
+  background: var(--gradient-brand);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

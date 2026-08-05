@@ -1,17 +1,13 @@
 <template>
   <div class="profile-page">
-    <div class="page-header">
-      <h2 class="page-title">个人中心</h2>
-    </div>
+    <PageHeader title="个人中心" />
 
     <div class="profile-grid">
       <!-- Profile Info Card -->
       <div class="app-card profile-card">
         <div class="profile-hero">
           <div class="avatar-container">
-            <el-avatar :size="90" :style="{ background: avatarColor, fontSize: '36px' }">
-              {{ avatarLetter }}
-            </el-avatar>
+            <AppAvatar :name="authStore.nickname || authStore.username" :size="90" />
           </div>
           <div class="profile-meta">
             <h3 class="profile-name">{{ authStore.nickname || authStore.username }}</h3>
@@ -37,43 +33,17 @@
         </div>
       </div>
 
-      <!-- Settings Card -->
       <div class="settings-column">
-        <!-- Change Password -->
-        <div class="app-card">
-          <div class="card-title" style="margin-bottom: 20px">修改密码</div>
-          <el-form ref="pwFormRef" :model="pwForm" :rules="pwRules" label-width="100px">
-            <el-form-item label="当前密码" prop="currentPassword">
-              <el-input
-                v-model="pwForm.currentPassword"
-                type="password"
-                show-password
-                placeholder="请输入当前密码"
-              />
-            </el-form-item>
-            <el-form-item label="新密码" prop="newPassword">
-              <el-input
-                v-model="pwForm.newPassword"
-                type="password"
-                show-password
-                placeholder="8位以上，含大小写字母和数字"
-              />
-            </el-form-item>
-            <el-form-item label="确认新密码" prop="confirmPassword">
-              <el-input
-                v-model="pwForm.confirmPassword"
-                type="password"
-                show-password
-                placeholder="再次输入新密码"
-              />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" :loading="pwLoading" @click="handleChangePassword">
-                修改密码
-              </el-button>
-            </el-form-item>
-          </el-form>
-        </div>
+        <!-- 修改密码已下线：后端 UserUpdateRequest 无 password 字段（已核实），
+             PUT /users 传 password 无效；待后端提供独立改密接口后恢复 -->
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          title="修改密码暂不可用"
+          description="后端暂未提供独立的修改密码接口，请等待后续版本支持。"
+          style="border-radius: var(--radius-md)"
+        />
 
         <!-- Appearance Settings -->
         <div class="app-card">
@@ -86,7 +56,7 @@
             </div>
             <el-switch
               :model-value="isDark"
-              active-color="#409EFF"
+              active-color="var(--primary)"
               @change="appStore.toggleTheme"
             />
           </div>
@@ -117,76 +87,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, SwitchButton } from '@element-plus/icons-vue'
-import type { FormInstance, FormRules } from 'element-plus'
+import PageHeader from '@/components/PageHeader.vue'
+import AppAvatar from '@/components/AppAvatar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
-import { useUserApi } from '@/api/users'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
-const { updateUser } = useUserApi()
 
 const isDark = computed(() => appStore.theme === 'dark')
-
-const pwFormRef = ref<FormInstance>()
-const pwLoading = ref(false)
-
-const pwForm = reactive({
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: '',
-})
-
-const pwRules: FormRules = {
-  currentPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
-  newPassword: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 8, message: '密码至少8位', trigger: 'blur' },
-    { pattern: /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, message: '必须含大小写字母和数字', trigger: 'blur' },
-  ],
-  confirmPassword: [
-    { required: true, message: '请确认新密码', trigger: 'blur' },
-    {
-      validator: (_r, v: string, cb) => {
-        if (v !== pwForm.newPassword) cb(new Error('两次输入密码不一致'))
-        else cb()
-      },
-      trigger: 'blur',
-    },
-  ],
-}
-
-// Avatar
-const avatarColors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#6554C0', '#00B4D8']
-const avatarColor = computed(() =>
-  avatarColors[(authStore.username || '').charCodeAt(0) % avatarColors.length]
-)
-const avatarLetter = computed(() =>
-  (authStore.nickname || authStore.username || 'U')[0].toUpperCase()
-)
-
-async function handleChangePassword() {
-  if (!pwFormRef.value) return
-  const valid = await pwFormRef.value.validate().catch(() => false)
-  if (!valid) return
-
-  if (!authStore.userId) return
-
-  pwLoading.value = true
-  try {
-    await updateUser(authStore.userId, { password: pwForm.newPassword })
-    ElMessage.success('密码修改成功，请重新登录')
-    authStore.logout()
-    router.push('/login')
-  } finally {
-    pwLoading.value = false
-  }
-}
 
 async function handleLogout() {
   await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
@@ -321,11 +235,7 @@ async function handleLogout() {
 
 /* Danger Zone */
 .danger-zone {
-  border: 1px solid #fde2e2 !important;
-}
-
-.dark .danger-zone {
-  border-color: rgba(245, 108, 108, 0.3) !important;
+  border: 1px solid var(--color-danger-border) !important;
 }
 
 .danger-title {

@@ -11,7 +11,7 @@
       <!-- Logo Area -->
       <div class="auth-header">
         <div class="auth-logo">
-          <el-icon size="36" color="#409EFF"><DocumentChecked /></el-icon>
+          <el-icon size="36" color="var(--primary)"><DocumentChecked /></el-icon>
         </div>
         <h1 class="auth-title">参考管理系统</h1>
         <p class="auth-subtitle">Reference Management System</p>
@@ -114,7 +114,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock, Timer } from '@element-plus/icons-vue'
+import { User, Lock, Timer, DocumentChecked } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useAuthApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
@@ -179,14 +179,12 @@ async function handleLogin() {
   justify-content: center;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #e8f4fd 0%, #f0f9ff 50%, #fef9f0 100%);
+  /* 背景收敛：--gradient-page 氛围光，替代写死渐变 */
+  background-color: var(--bg-page);
+  background-image: var(--gradient-page);
 }
 
-.dark .auth-page {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-}
-
-/* Decorative circles */
+/* Decorative circles（颜色收敛为语义变量） */
 .auth-bg {
   position: absolute;
   inset: 0;
@@ -202,7 +200,7 @@ async function handleLogin() {
 .circle-1 {
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, #409EFF, transparent);
+  background: radial-gradient(circle, var(--primary), transparent);
   top: -100px;
   right: -100px;
 }
@@ -210,7 +208,7 @@ async function handleLogin() {
 .circle-2 {
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, #67C23A, transparent);
+  background: radial-gradient(circle, var(--success), transparent);
   bottom: -80px;
   left: -80px;
 }
@@ -218,18 +216,25 @@ async function handleLogin() {
 .circle-3 {
   width: 200px;
   height: 200px;
-  background: radial-gradient(circle, #E6A23C, transparent);
+  background: radial-gradient(circle, var(--warning), transparent);
   bottom: 40%;
   right: 10%;
 }
 
-/* Container */
+/* Container（移动端 width: min(420px, 92vw)） */
 .auth-container {
   width: 100%;
   max-width: 420px;
   padding: 20px;
   position: relative;
   z-index: 1;
+}
+
+@media (max-width: 480px) {
+  .auth-container {
+    max-width: none;
+    width: min(420px, 92vw);
+  }
 }
 
 /* Header */
@@ -241,13 +246,14 @@ async function handleLogin() {
 .auth-logo {
   width: 72px;
   height: 72px;
-  background: white;
+  /* 深色下自动变深，避免白块刺眼 */
+  background: var(--bg-card);
   border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 16px;
-  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.2);
+  box-shadow: 0 8px 24px rgba(79, 107, 255, 0.2);
 }
 
 .auth-title {

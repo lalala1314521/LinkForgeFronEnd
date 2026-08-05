@@ -41,36 +41,38 @@
           <span class="card-title">最近订单</span>
           <el-button link type="primary" @click="$router.push('/orders')">查看全部</el-button>
         </div>
-        <el-table
-          :data="recentOrders"
-          v-loading="ordersLoading"
-          stripe
-          style="width: 100%"
-        >
-          <el-table-column prop="orderNo" label="订单号" min-width="160">
-            <template #default="{ row }">
-              <span class="order-no">{{ row.orderNo }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="totalAmount" label="金额" width="120">
-            <template #default="{ row }">
-              <span class="amount">¥ {{ formatAmount(row.totalAmount) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="status" label="状态" width="100">
-            <template #default="{ row }">
-              <el-tag :type="getOrderStatusType(row.status)" size="small" round>
-                {{ orderStatusMap[row.status] }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="createdAt" label="创建时间" min-width="150">
-            <template #default="{ row }">
-              <span class="text-secondary">{{ formatDate(row.createdAt) }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-if="!ordersLoading && recentOrders.length === 0" description="暂无订单数据" />
+        <template v-if="!ordersLoading && recentOrders.length === 0">
+          <EmptyState description="暂无订单数据" />
+        </template>
+        <template v-else>
+          <el-table
+            :data="recentOrders"
+            v-loading="ordersLoading"
+            stripe
+            style="width: 100%"
+          >
+            <el-table-column prop="orderNo" label="订单号" min-width="160">
+              <template #default="{ row }">
+                <span class="order-no">{{ row.orderNo }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="finalAmount" label="实付金额" width="120">
+              <template #default="{ row }">
+                <span class="amount">{{ formatAmount(row.finalAmount ?? row.totalAmount) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="100">
+              <template #default="{ row }">
+                <StatusTag :status="row.status" :map="ORDER_STATUS" size="small" />
+              </template>
+            </el-table-column>
+            <el-table-column prop="createdAt" label="创建时间" min-width="150">
+              <template #default="{ row }">
+                <span class="text-secondary">{{ formatDate(row.createdAt) }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </template>
       </div>
 
       <!-- User Status Distribution -->
@@ -122,9 +124,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import dayjs from 'dayjs'
+import type { Component } from 'vue'
+import { DataAnalysis, ArrowRight, User, UserFilled, ShoppingCart, Clock } from '@element-plus/icons-vue'
+import StatusTag from '@/components/StatusTag.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUserApi } from '@/api/users'
 import { useOrderApi } from '@/api/orders'
+import { ORDER_STATUS } from '@/constants/statusMaps'
+import { formatAmount, formatDate } from '@/utils/format'
 import type { Order } from '@/types'
 
 const authStore = useAuthStore()
@@ -156,37 +164,47 @@ const completedOrders = ref(0)
 const cancelledOrders = ref(0)
 const recentOrders = ref<Order[]>([])
 
-const stats = computed(() => [
+interface StatItem {
+  label: string
+  value: number
+  icon: Component
+  color: string
+  bgColor: string
+  route: string
+}
+
+// 统计图标底色变量化（--color-*-bg），图标为组件对象（main.ts 已移除全量注册）
+const stats = computed<StatItem[]>(() => [
   {
     label: '总用户数',
     value: totalUsers.value,
-    icon: 'User',
-    color: '#409EFF',
-    bgColor: '#ecf5ff',
+    icon: User,
+    color: 'var(--primary)',
+    bgColor: 'var(--color-info-bg)',
     route: '/users',
   },
   {
     label: '活跃用户',
     value: activeUsers.value,
-    icon: 'UserFilled',
-    color: '#67C23A',
-    bgColor: '#f0f9eb',
+    icon: UserFilled,
+    color: 'var(--success)',
+    bgColor: 'var(--color-success-bg)',
     route: '/users',
   },
   {
     label: '总订单数',
     value: totalOrders.value,
-    icon: 'ShoppingCart',
-    color: '#E6A23C',
-    bgColor: '#fdf6ec',
+    icon: ShoppingCart,
+    color: 'var(--warning)',
+    bgColor: 'var(--color-warning-bg)',
     route: '/orders',
   },
   {
     label: '待处理订单',
     value: pendingOrders.value,
-    icon: 'Clock',
-    color: '#F56C6C',
-    bgColor: '#fef0f0',
+    icon: Clock,
+    color: 'var(--danger)',
+    bgColor: 'var(--color-danger-bg)',
     route: '/orders',
   },
 ])
@@ -202,42 +220,15 @@ const userStatusStats = computed(() => {
 
 const orderStatusStats = computed(() => [
   { status: 'PENDING', label: '待支付', count: pendingOrders.value, color: '#E6A23C' },
-  { status: 'PAID', label: '已支付', count: paidOrders.value, color: '#409EFF' },
+  { status: 'PAID', label: '已支付', count: paidOrders.value, color: '#4F6BFF' },
   { status: 'SHIPPED', label: '已发货', count: shippedOrders.value, color: '#909399' },
   { status: 'COMPLETED', label: '已完成', count: completedOrders.value, color: '#67C23A' },
   { status: 'CANCELLED', label: '已取消', count: cancelledOrders.value, color: '#F56C6C' },
 ])
 
-const orderStatusMap: Record<string, string> = {
-  PENDING: '待支付',
-  PAID: '已支付',
-  SHIPPED: '已发货',
-  COMPLETED: '已完成',
-  CANCELLED: '已取消',
-}
-
-function getOrderStatusType(status: string) {
-  const map: Record<string, string> = {
-    PENDING: 'warning',
-    PAID: 'primary',
-    SHIPPED: 'info',
-    COMPLETED: 'success',
-    CANCELLED: 'danger',
-  }
-  return (map[status] || 'info') as 'warning' | 'primary' | 'info' | 'success' | 'danger'
-}
-
-function formatAmount(amount: number) {
-  return Number(amount).toFixed(2)
-}
-
-function formatDate(date: string) {
-  return dayjs(date).format('MM-DD HH:mm')
-}
-
 async function fetchData() {
   try {
-    // Fetch users by status
+    // Fetch users by status（后端无聚合接口，保持 size=1 并发统计）
     const [allUsers, activeRes, disabledRes, deletedRes] = await Promise.all([
       getUsers({ page: 1, size: 1 }),
       getUsers({ status: 'ACTIVE', page: 1, size: 1 }),
@@ -290,7 +281,7 @@ onMounted(fetchData)
 
 /* Welcome Banner */
 .welcome-banner {
-  background: linear-gradient(135deg, #409EFF 0%, #337ecc 50%, #6554C0 100%);
+  background: var(--gradient-brand);
   border-radius: var(--radius-lg);
   padding: 28px 32px;
   overflow: hidden;
@@ -437,8 +428,6 @@ onMounted(fetchData)
   gap: 14px;
   margin-bottom: 24px;
 }
-
-.user-stat-item {}
 
 .user-stat-header {
   display: flex;

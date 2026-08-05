@@ -8,7 +8,7 @@
     <div class="auth-container">
       <div class="auth-header">
         <div class="auth-logo">
-          <el-icon size="36" color="#409EFF"><DocumentChecked /></el-icon>
+          <el-icon size="36" color="var(--primary)"><DocumentChecked /></el-icon>
         </div>
         <h1 class="auth-title">创建账户</h1>
         <p class="auth-subtitle">加入参考管理系统</p>
@@ -55,7 +55,7 @@
           </el-form-item>
 
           <el-row :gutter="12">
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="手机号" prop="phone">
                 <el-input
                   v-model="form.phone"
@@ -66,7 +66,7 @@
                 />
               </el-form-item>
             </el-col>
-            <el-col :span="12">
+            <el-col :xs="24" :sm="12">
               <el-form-item label="邮箱" prop="email">
                 <el-input
                   v-model="form.email"
@@ -123,10 +123,11 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock, EditPen, Phone, Message, Timer } from '@element-plus/icons-vue'
+import { User, Lock, EditPen, Phone, Message, Timer, DocumentChecked } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useUserApi } from '@/api/users'
 import { useRateLimit } from '@/composables/useRateLimit'
+import type { CreateUserRequest } from '@/types'
 
 const router = useRouter()
 const { createUser } = useUserApi()
@@ -176,7 +177,7 @@ async function handleRegister() {
 
   loading.value = true
   try {
-    const payload: Record<string, string> = {
+    const payload: CreateUserRequest = {
       username: form.username,
       password: form.password,
     }
@@ -184,7 +185,7 @@ async function handleRegister() {
     if (form.phone) payload.phone = form.phone
     if (form.email) payload.email = form.email
 
-    await createUser(payload as Parameters<typeof createUser>[0])
+    await createUser(payload)
     ElMessage.success('注册成功，请登录')
     router.push('/login')
   } catch (err: unknown) {
@@ -206,11 +207,9 @@ async function handleRegister() {
   justify-content: center;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #e8f4fd 0%, #f0f9ff 50%, #fef9f0 100%);
-}
-
-.dark .auth-page {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  /* 背景收敛：--gradient-page 氛围光，替代写死渐变 */
+  background-color: var(--bg-page);
+  background-image: var(--gradient-page);
 }
 
 .auth-bg {
@@ -228,7 +227,7 @@ async function handleRegister() {
 .circle-1 {
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, #409EFF, transparent);
+  background: radial-gradient(circle, var(--primary), transparent);
   top: -100px;
   left: -100px;
 }
@@ -236,7 +235,7 @@ async function handleRegister() {
 .circle-2 {
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, #67C23A, transparent);
+  background: radial-gradient(circle, var(--success), transparent);
   bottom: -80px;
   right: -80px;
 }
@@ -249,6 +248,13 @@ async function handleRegister() {
   z-index: 1;
 }
 
+@media (max-width: 520px) {
+  .auth-container {
+    max-width: none;
+    width: min(480px, 92vw);
+  }
+}
+
 .auth-header {
   text-align: center;
   margin-bottom: 28px;
@@ -257,13 +263,14 @@ async function handleRegister() {
 .auth-logo {
   width: 72px;
   height: 72px;
-  background: white;
+  /* 深色下自动变深，避免白块刺眼 */
+  background: var(--bg-card);
   border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 16px;
-  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.2);
+  box-shadow: 0 8px 24px rgba(79, 107, 255, 0.2);
 }
 
 .auth-title {

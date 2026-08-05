@@ -1,15 +1,14 @@
 <template>
   <div class="user-list-page">
     <!-- Page Header -->
-    <div class="page-header">
-      <div class="header-left">
-        <h2 class="page-title">用户管理</h2>
+    <PageHeader title="用户管理">
+      <template #actions>
         <el-tag type="info" round>共 {{ total }} 位用户</el-tag>
-      </div>
-      <el-button type="primary" :icon="Plus" @click="openCreateDialog">
-        添加用户
-      </el-button>
-    </div>
+        <el-button type="primary" :icon="Plus" @click="openCreateDialog">
+          添加用户
+        </el-button>
+      </template>
+    </PageHeader>
 
     <!-- Filter Bar -->
     <div class="app-card filter-card">
@@ -40,103 +39,112 @@
 
     <!-- Table -->
     <div class="app-card">
-      <el-table
-        v-loading="loading"
-        :data="users"
-        stripe
-        row-key="id"
-        @sort-change="handleSortChange"
-      >
-        <el-table-column type="index" label="#" width="60" />
+      <template v-if="!loading && users.length === 0">
+        <EmptyState description="暂无用户数据" />
+      </template>
+      <template v-else>
+        <el-table
+          v-loading="loading"
+          :data="users"
+          stripe
+          row-key="id"
+          @sort-change="handleSortChange"
+        >
+          <el-table-column type="index" label="#" width="60" />
 
-        <el-table-column prop="username" label="用户名" min-width="130" sortable="custom">
-          <template #default="{ row }">
-            <div class="user-cell">
-              <el-avatar :size="32" :style="{ background: getAvatarColor(row.username) }">
-                {{ row.username[0].toUpperCase() }}
-              </el-avatar>
-              <div class="user-cell-info">
-                <span class="user-cell-name">{{ row.username }}</span>
-                <span class="user-cell-nick">{{ row.nickname || '—' }}</span>
+          <el-table-column prop="username" label="用户名" min-width="130" sortable="custom">
+            <template #default="{ row }">
+              <div class="user-cell">
+                <AppAvatar :name="row.nickname || row.username" :size="32" />
+                <div class="user-cell-info">
+                  <span class="user-cell-name">{{ row.username }}</span>
+                  <span class="user-cell-nick">{{ row.nickname || '—' }}</span>
+                </div>
               </div>
-            </div>
-          </template>
-        </el-table-column>
+            </template>
+          </el-table-column>
 
-        <el-table-column prop="phone" label="手机号" width="140">
-          <template #default="{ row }">{{ row.phone || '—' }}</template>
-        </el-table-column>
+          <el-table-column prop="role" label="角色" width="100">
+            <template #default="{ row }">
+              <el-tag :type="row.role === 'ADMIN' ? 'warning' : 'info'" size="small" round>
+                {{ row.role === 'ADMIN' ? '管理员' : '普通用户' }}
+              </el-tag>
+            </template>
+          </el-table-column>
 
-        <el-table-column prop="email" label="邮箱" min-width="160">
-          <template #default="{ row }">{{ row.email || '—' }}</template>
-        </el-table-column>
+          <el-table-column prop="phone" label="手机号" width="140">
+            <template #default="{ row }">{{ row.phone || '—' }}</template>
+          </el-table-column>
 
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small" round>
-              {{ statusMap[row.status] }}
-            </el-tag>
-          </template>
-        </el-table-column>
+          <el-table-column prop="email" label="邮箱" min-width="160">
+            <template #default="{ row }">{{ row.email || '—' }}</template>
+          </el-table-column>
 
-        <el-table-column prop="createdAt" label="注册时间" width="170" sortable="custom">
-          <template #default="{ row }">
-            {{ formatDate(row.createdAt) }}
-          </template>
-        </el-table-column>
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="{ row }">
+              <StatusTag :status="row.status" :map="USER_STATUS" size="small" />
+            </template>
+          </el-table-column>
 
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="viewDetail(row.id)">
-              详情
-            </el-button>
-            <el-button link type="primary" size="small" @click="openEditDialog(row)">
-              编辑
-            </el-button>
-            <el-dropdown size="small" @command="(cmd: string) => handleMoreAction(cmd, row)">
-              <el-button link type="primary" size="small">
-                更多 <el-icon><ArrowDown /></el-icon>
+          <el-table-column prop="createdAt" label="注册时间" width="170" sortable="custom">
+            <template #default="{ row }">
+              {{ formatDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+
+          <el-table-column label="操作" width="200" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" size="small" @click="viewDetail(row.id)">
+                详情
               </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item
-                    v-if="row.status !== 'ACTIVE'"
-                    command="enable"
-                    :icon="CircleCheck"
-                  >
-                    启用账户
-                  </el-dropdown-item>
-                  <el-dropdown-item
-                    v-if="row.status === 'ACTIVE'"
-                    command="disable"
-                    :icon="CircleClose"
-                  >
-                    禁用账户
-                  </el-dropdown-item>
-                  <el-dropdown-item command="delete" :icon="Delete" class="danger-item">
-                    删除用户
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-      </el-table>
+              <el-button link type="primary" size="small" @click="openEditDialog(row)">
+                编辑
+              </el-button>
+              <el-dropdown size="small" @command="(cmd: string) => handleMoreAction(cmd, row)">
+                <el-button link type="primary" size="small">
+                  更多 <el-icon><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item
+                      v-if="row.status !== 'ACTIVE'"
+                      command="enable"
+                      :icon="CircleCheck"
+                    >
+                      启用账户
+                    </el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="row.status === 'ACTIVE'"
+                      command="disable"
+                      :icon="CircleClose"
+                    >
+                      禁用账户
+                    </el-dropdown-item>
+                    <el-dropdown-item command="delete" :icon="Delete" class="danger-item">
+                      删除用户
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </template>
+          </el-table-column>
+        </el-table>
 
-      <!-- Pagination -->
-      <el-pagination
-        v-model:current-page="queryForm.page"
-        v-model:page-size="queryForm.size"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        background
-        @size-change="fetchUsers"
-        @current-change="fetchUsers"
-      />
+        <!-- Pagination -->
+        <el-pagination
+          v-model:current-page="queryForm.page"
+          v-model:page-size="queryForm.size"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+          @size-change="fetchUsers"
+          @current-change="fetchUsers"
+        />
+      </template>
     </div>
 
-    <!-- Create / Edit Dialog -->
+    <!-- Create / Edit Dialog（编辑不传 password，后端 UserUpdateRequest 无该字段） -->
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑用户' : '添加用户'"
@@ -152,12 +160,12 @@
         <el-form-item label="用户名" prop="username">
           <el-input v-model="userForm.username" :disabled="isEdit" placeholder="3-50位，字母数字下划线" />
         </el-form-item>
-        <el-form-item label="密码" prop="password">
+        <el-form-item v-if="!isEdit" label="密码" prop="password">
           <el-input
             v-model="userForm.password"
             type="password"
             show-password
-            :placeholder="isEdit ? '不填则不修改密码' : '8位以上，含大小写和数字'"
+            placeholder="8位以上，含大小写字母和数字"
           />
         </el-form-item>
         <el-form-item label="昵称" prop="nickname">
@@ -185,11 +193,16 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Refresh, Delete, CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { Plus, Search, Refresh, Delete, CircleCheck, CircleClose, ArrowDown } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
-import dayjs from 'dayjs'
+import PageHeader from '@/components/PageHeader.vue'
+import StatusTag from '@/components/StatusTag.vue'
+import AppAvatar from '@/components/AppAvatar.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useUserApi } from '@/api/users'
-import type { User, UserStatus } from '@/types'
+import { USER_STATUS } from '@/constants/statusMaps'
+import { formatDate } from '@/utils/format'
+import type { User, UserStatus, UpdateUserRequest, CreateUserRequest } from '@/types'
 
 const router = useRouter()
 const { getUsers, createUser, updateUser, updateUserStatus, deleteUser } = useUserApi()
@@ -247,26 +260,6 @@ const formRules: FormRules = {
   email: [
     { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
   ],
-}
-
-const statusMap: Record<string, string> = {
-  ACTIVE: '活跃',
-  DISABLED: '禁用',
-  DELETED: '已删除',
-}
-
-function getStatusType(status: string) {
-  const map: Record<string, string> = { ACTIVE: 'success', DISABLED: 'warning', DELETED: 'danger' }
-  return (map[status] || 'info') as 'success' | 'warning' | 'danger' | 'info'
-}
-
-const avatarColors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399', '#6554C0', '#00B4D8']
-function getAvatarColor(username: string) {
-  return avatarColors[username.charCodeAt(0) % avatarColors.length]
-}
-
-function formatDate(date: string) {
-  return dayjs(date).format('YYYY-MM-DD HH:mm')
 }
 
 async function fetchUsers() {
@@ -334,17 +327,23 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    const payload: Record<string, string> = { username: userForm.username }
-    if (userForm.password) payload.password = userForm.password
-    if (userForm.nickname) payload.nickname = userForm.nickname
-    if (userForm.phone) payload.phone = userForm.phone
-    if (userForm.email) payload.email = userForm.email
-
     if (isEdit.value && editId.value) {
+      // 编辑：仅提交昵称/手机号/邮箱（后端 UserUpdateRequest 无 password）
+      const payload: UpdateUserRequest = {}
+      if (userForm.nickname) payload.nickname = userForm.nickname
+      if (userForm.phone) payload.phone = userForm.phone
+      if (userForm.email) payload.email = userForm.email
       await updateUser(editId.value, payload)
       ElMessage.success('用户信息已更新')
     } else {
-      await createUser({ ...payload, password: userForm.password } as Parameters<typeof createUser>[0])
+      const payload: CreateUserRequest = {
+        username: userForm.username,
+        password: userForm.password,
+      }
+      if (userForm.nickname) payload.nickname = userForm.nickname
+      if (userForm.phone) payload.phone = userForm.phone
+      if (userForm.email) payload.email = userForm.email
+      await createUser(payload)
       ElMessage.success('用户创建成功')
     }
     dialogVisible.value = false
@@ -395,12 +394,6 @@ onMounted(fetchUsers)
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 .filter-card {

@@ -1,8 +1,6 @@
 <template>
   <div class="order-detail-page">
-    <div class="back-nav">
-      <el-button :icon="ArrowLeft" link @click="$router.back()">返回订单列表</el-button>
-    </div>
+    <PageHeader title="订单详情" back back-text="返回订单列表" />
 
     <div v-if="loading">
       <el-skeleton :rows="10" animated style="padding: 20px; background: var(--bg-card); border-radius: var(--radius-md)" />
@@ -15,11 +13,29 @@
           <!-- Status Header -->
           <div class="order-status-header" :class="`status-${order.status.toLowerCase()}`">
             <div class="status-icon-wrap">
-              <el-icon size="32"><component :is="getStatusIcon(order.status)" /></el-icon>
+              <el-icon size="32" color="var(--primary)"><component :is="getStatusIcon(order.status)" /></el-icon>
             </div>
             <div class="status-text-wrap">
-              <div class="status-label">{{ orderStatusMap[order.status] }}</div>
+              <div class="status-label">
+                <StatusTag :status="order.status" :map="ORDER_STATUS" size="large" />
+              </div>
               <div class="status-desc">{{ getStatusDesc(order.status) }}</div>
+            </div>
+          </div>
+
+          <!-- Amount Section (金额三栏) -->
+          <div class="amount-section">
+            <div class="amount-item">
+              <span class="amount-label">订单金额</span>
+              <span class="amount-value">{{ formatAmount(order.totalAmount) }}</span>
+            </div>
+            <div v-if="Number(order.couponDiscount) > 0" class="amount-item">
+              <span class="amount-label">优惠券抵扣</span>
+              <span class="amount-value discount">- {{ formatAmount(order.couponDiscount) }}</span>
+            </div>
+            <div class="amount-item">
+              <span class="amount-label">实付金额</span>
+              <span class="amount-value final">{{ formatAmount(order.finalAmount ?? order.totalAmount) }}</span>
             </div>
           </div>
 
@@ -42,20 +58,16 @@
                 </el-button>
               </div>
               <div class="info-item">
-                <span class="info-label">订单金额</span>
-                <span class="info-value amount">¥ {{ Number(order.totalAmount).toFixed(2) }}</span>
-              </div>
-              <div class="info-item">
                 <span class="info-label">备注</span>
                 <span class="info-value">{{ order.remark || '—' }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">创建时间</span>
-                <span class="info-value">{{ formatDate(order.createdAt) }}</span>
+                <span class="info-value">{{ formatDateTime(order.createdAt) }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">最后更新</span>
-                <span class="info-value">{{ formatDate(order.updatedAt) }}</span>
+                <span class="info-value">{{ formatDateTime(order.updatedAt) }}</span>
               </div>
             </div>
           </div>
@@ -89,23 +101,23 @@
           </div>
         </div>
 
-        <!-- Timeline Card -->
+        <!-- Timeline Card (只保留真实时间节点) -->
         <div class="app-card timeline-card">
           <div class="info-title" style="margin-bottom: 20px">订单状态流转</div>
           <el-timeline>
             <el-timeline-item
               v-for="(step, i) in statusTimeline"
               :key="i"
-              :type="getTimelineType(step.status, order.status)"
-              :hollow="!isStatusReached(step.status, order.status)"
-              :timestamp="step.time"
+              :type="getTimelineType(step)"
+              :hollow="step.state !== 'reached'"
+              :timestamp="step.time || ''"
             >
               <div class="timeline-content">
                 <span class="timeline-title">{{ step.label }}</span>
-                <span v-if="isStatusReached(step.status, order.status)" class="timeline-badge reached">
+                <span v-if="step.state === 'reached'" class="timeline-badge reached">
                   已完成
                 </span>
-                <span v-else-if="step.status === order.status" class="timeline-badge current">
+                <span v-else-if="step.state === 'current'" class="timeline-badge current">
                   当前
                 </span>
                 <span v-else class="timeline-badge pending">
@@ -145,10 +157,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, CreditCard, CircleClose } from '@element-plus/icons-vue'
-import dayjs from 'dayjs'
+import type { Component } from 'vue'
+import { CreditCard, CircleClose, Clock, Van, CircleCheck, InfoFilled } from '@element-plus/icons-vue'
+import PageHeader from '@/components/PageHeader.vue'
+import StatusTag from '@/components/StatusTag.vue'
 import { useOrderApi } from '@/api/orders'
-import type { Order } from '@/types'
+import { ORDER_STATUS } from '@/constants/statusMaps'
+import { formatAmount, formatDateTime } from '@/utils/format'
+import type { Order, OrderStatus } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -158,28 +174,59 @@ const orderId = Number(route.params.id)
 const loading = ref(true)
 const order = ref<Order | null>(null)
 
-const orderStatusMap: Record<string, string> = {
-  PENDING: '待支付', PAID: '已支付', SHIPPED: '已发货', COMPLETED: '已完成', CANCELLED: '已取消'
+interface TimelineStep {
+  status: string
+  label: string
+  time: string
+  state: 'reached' | 'current' | 'pending'
 }
 
-const statusFlowOrder = ['PENDING', 'PAID', 'SHIPPED', 'COMPLETED']
+/** 时间线只保留真实节点：订单创建(createdAt) 与订单完成(updatedAt，仅 COMPLETED)；
+ *  PAID/SHIPPED 显示 label 但不显示假时间（后端无状态流转时间字段，已核实） */
+const statusTimeline = computed<TimelineStep[]>(() => {
+  const o = order.value
+  if (!o) return []
+  const status: OrderStatus = o.status
+  const steps: TimelineStep[] = [
+    { status: 'PENDING', label: '订单创建', time: formatDateTime(o.createdAt), state: 'reached' },
+  ]
+  if (status === 'CANCELLED') return steps
 
-const statusTimeline = computed(() => [
-  { status: 'PENDING', label: '订单创建', time: order.value ? formatDate(order.value.createdAt) : '' },
-  { status: 'PAID', label: '支付完成', time: '' },
-  { status: 'SHIPPED', label: '商品发货', time: '' },
-  { status: 'COMPLETED', label: '订单完成', time: order.value && order.value.status === 'COMPLETED' ? formatDate(order.value.updatedAt) : '' },
-])
+  steps.push({
+    status: 'PAID',
+    label: '支付完成',
+    time: '',
+    state: status === 'PAID' ? 'current' : (status === 'SHIPPED' || status === 'COMPLETED' ? 'reached' : 'pending'),
+  })
+  if (status === 'PAID') return steps
 
-function getStatusIcon(status: string) {
-  const map: Record<string, string> = {
-    PENDING: 'Clock',
-    PAID: 'CreditCard',
-    SHIPPED: 'Van',
-    COMPLETED: 'CircleCheck',
-    CANCELLED: 'CircleClose',
+  steps.push({
+    status: 'SHIPPED',
+    label: '商品发货',
+    time: '',
+    state: status === 'SHIPPED' ? 'current' : (status === 'COMPLETED' ? 'reached' : 'pending'),
+  })
+  if (status === 'SHIPPED') return steps
+
+  steps.push({
+    status: 'COMPLETED',
+    label: '订单完成',
+    time: formatDateTime(o.updatedAt),
+    state: 'reached',
+  })
+  return steps
+})
+
+/** 返回组件对象（main.ts 已移除全量图标注册，必须局部引入） */
+function getStatusIcon(status: string): Component {
+  const map: Record<string, Component> = {
+    PENDING: Clock,
+    PAID: CreditCard,
+    SHIPPED: Van,
+    COMPLETED: CircleCheck,
+    CANCELLED: CircleClose,
   }
-  return map[status] || 'InfoFilled'
+  return map[status] || InfoFilled
 }
 
 function getStatusDesc(status: string) {
@@ -193,26 +240,14 @@ function getStatusDesc(status: string) {
   return map[status] || ''
 }
 
-function getTimelineType(stepStatus: string, currentStatus: string) {
-  if (currentStatus === 'CANCELLED') return 'danger' as const
-  if (isStatusReached(stepStatus, currentStatus)) return 'success' as const
-  if (stepStatus === currentStatus) return 'primary' as const
+function getTimelineType(step: TimelineStep) {
+  if (step.state === 'reached') return 'success' as const
+  if (step.state === 'current') return 'primary' as const
   return 'info' as const
-}
-
-function isStatusReached(stepStatus: string, currentStatus: string) {
-  if (currentStatus === 'CANCELLED') return false
-  const stepIdx = statusFlowOrder.indexOf(stepStatus)
-  const currentIdx = statusFlowOrder.indexOf(currentStatus)
-  return stepIdx < currentIdx
 }
 
 function canCancel(status: string) {
   return status !== 'COMPLETED' && status !== 'CANCELLED'
-}
-
-function formatDate(d: string) {
-  return dayjs(d).format('YYYY-MM-DD HH:mm:ss')
 }
 
 async function fetchOrder() {
@@ -229,7 +264,7 @@ async function fetchOrder() {
 async function handlePay() {
   if (!order.value) return
   await ElMessageBox.confirm(
-    `确定支付订单 ${order.value.orderNo}？\n金额：¥${Number(order.value.totalAmount).toFixed(2)}`,
+    `确定支付订单 ${order.value.orderNo}？\n金额：${formatAmount(order.value.finalAmount ?? order.value.totalAmount)}`,
     '确认支付',
     { type: 'warning', confirmButtonText: '确认支付' }
   )
@@ -283,32 +318,23 @@ onMounted(fetchOrder)
   margin-bottom: 20px;
 }
 
-.status-pending { background: #fdf6ec; }
-.status-paid { background: #ecf5ff; }
-.status-shipped { background: #f4f4f5; }
-.status-completed { background: #f0f9eb; }
-.status-cancelled { background: #fef0f0; }
-
-.dark .status-pending { background: rgba(230, 162, 60, 0.1); }
-.dark .status-paid { background: rgba(64, 158, 255, 0.1); }
-.dark .status-shipped { background: rgba(144, 147, 153, 0.1); }
-.dark .status-completed { background: rgba(103, 194, 58, 0.1); }
-.dark .status-cancelled { background: rgba(245, 108, 108, 0.1); }
+/* 状态底色变量化：深色不再需要单独 .dark 覆盖（变量已含深色值） */
+.status-pending { background: var(--color-warning-bg); }
+.status-paid { background: var(--color-info-bg); }
+.status-shipped { background: var(--bg-page); }
+.status-completed { background: var(--color-success-bg); }
+.status-cancelled { background: var(--color-danger-bg); }
 
 .status-icon-wrap {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: white;
+  background: var(--bg-card);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
-}
-
-.dark .status-icon-wrap {
-  background: var(--bg-page);
 }
 
 .status-label {
@@ -321,6 +347,45 @@ onMounted(fetchOrder)
   font-size: 13px;
   color: var(--text-secondary);
   margin-top: 2px;
+}
+
+/* Amount Section (金额三栏) */
+.amount-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-page);
+}
+
+.amount-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.amount-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.amount-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.amount-value.discount {
+  color: var(--success);
+}
+
+.amount-value.final {
+  color: var(--danger);
+  font-size: 22px;
 }
 
 /* Info Section */
@@ -367,12 +432,6 @@ onMounted(fetchOrder)
   font-size: 12px;
 }
 
-.info-value.amount {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--danger);
-}
-
 /* Actions */
 .order-actions {
   display: flex;
@@ -381,8 +440,6 @@ onMounted(fetchOrder)
 }
 
 /* Timeline */
-.timeline-card {}
-
 .timeline-content {
   display: flex;
   align-items: center;
@@ -402,13 +459,13 @@ onMounted(fetchOrder)
 }
 
 .timeline-badge.reached {
-  background: #f0f9eb;
-  color: #67C23A;
+  background: var(--color-success-bg);
+  color: var(--success);
 }
 
 .timeline-badge.current {
-  background: #ecf5ff;
-  color: #409EFF;
+  background: var(--color-info-bg);
+  color: var(--primary);
 }
 
 .timeline-badge.pending {

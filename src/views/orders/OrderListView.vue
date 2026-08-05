@@ -1,15 +1,14 @@
 <template>
   <div class="order-list-page">
     <!-- Page Header -->
-    <div class="page-header">
-      <div class="header-left">
-        <h2 class="page-title">订单管理</h2>
+    <PageHeader title="订单管理">
+      <template #actions>
         <el-tag type="info" round>共 {{ total }} 笔订单</el-tag>
-      </div>
-      <el-button type="primary" :icon="Plus" @click="openCreateDialog">
-        创建订单
-      </el-button>
-    </div>
+        <el-button type="primary" :icon="Plus" @click="openCreateDialog">
+          创建订单
+        </el-button>
+      </template>
+    </PageHeader>
 
     <!-- Filter Bar -->
     <div class="app-card filter-card">
@@ -35,135 +34,171 @@
       </el-form>
     </div>
 
-    <!-- Status Quick Filter Tabs -->
-    <div class="status-tabs">
-      <div
-        v-for="tab in statusTabs"
-        :key="tab.value"
-        class="status-tab"
-        :class="{ active: queryForm.status === tab.value }"
-        @click="quickFilter(tab.value)"
-      >
-        <span class="tab-label">{{ tab.label }}</span>
-        <span class="tab-dot" :style="{ background: tab.color }"></span>
-      </div>
-    </div>
+    <!-- Status Quick Filter Tabs (component language) -->
+    <el-radio-group v-model="queryForm.status" class="status-tabs" @change="quickFilter">
+      <el-radio-button v-for="tab in statusTabs" :key="tab.value" :value="tab.value">
+        {{ tab.label }}
+      </el-radio-button>
+    </el-radio-group>
 
     <!-- Table -->
     <div class="app-card">
-      <el-table
-        v-loading="loading"
-        :data="orders"
-        stripe
-        row-key="id"
-      >
-        <el-table-column type="index" label="#" width="60" />
+      <template v-if="!loading && orders.length === 0">
+        <EmptyState description="暂无订单数据" />
+      </template>
+      <template v-else>
+        <el-table
+          v-loading="loading"
+          :data="orders"
+          stripe
+          row-key="id"
+        >
+          <el-table-column type="index" label="#" width="60" />
 
-        <el-table-column prop="orderNo" label="订单号" min-width="180">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="viewDetail(row.id)">
-              {{ row.orderNo }}
-            </el-button>
-          </template>
-        </el-table-column>
+          <el-table-column prop="orderNo" label="订单号" min-width="180">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="viewDetail(row.id)">
+                {{ row.orderNo }}
+              </el-button>
+            </template>
+          </el-table-column>
 
-        <el-table-column prop="userId" label="用户 ID" width="90">
-          <template #default="{ row }">
-            <el-tag size="small" @click="$router.push(`/users/${row.userId}`)" style="cursor:pointer">
-              #{{ row.userId }}
-            </el-tag>
-          </template>
-        </el-table-column>
+          <el-table-column prop="userId" label="用户 ID" width="90">
+            <template #default="{ row }">
+              <el-tag size="small" style="cursor:pointer" @click="$router.push(`/users/${row.userId}`)">
+                #{{ row.userId }}
+              </el-tag>
+            </template>
+          </el-table-column>
 
-        <el-table-column prop="totalAmount" label="订单金额" width="130">
-          <template #default="{ row }">
-            <span class="amount">¥ {{ Number(row.totalAmount).toFixed(2) }}</span>
-          </template>
-        </el-table-column>
+          <el-table-column prop="finalAmount" label="实付金额" width="130">
+            <template #default="{ row }">
+              <span class="amount">{{ formatAmount(row.finalAmount ?? row.totalAmount) }}</span>
+            </template>
+          </el-table-column>
 
-        <el-table-column prop="status" label="状态" width="110">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small" round>
-              {{ orderStatusMap[row.status] }}
-            </el-tag>
-          </template>
-        </el-table-column>
+          <el-table-column prop="status" label="状态" width="110">
+            <template #default="{ row }">
+              <StatusTag :status="row.status" :map="ORDER_STATUS" size="small" />
+            </template>
+          </el-table-column>
 
-        <el-table-column prop="remark" label="备注" min-width="150">
-          <template #default="{ row }">
-            <span style="color: var(--text-secondary)">{{ row.remark || '—' }}</span>
-          </template>
-        </el-table-column>
+          <el-table-column prop="remark" label="备注" min-width="150">
+            <template #default="{ row }">
+              <span class="text-secondary">{{ row.remark || '—' }}</span>
+            </template>
+          </el-table-column>
 
-        <el-table-column prop="createdAt" label="创建时间" width="170">
-          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-        </el-table-column>
+          <el-table-column prop="createdAt" label="创建时间" width="170">
+            <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+          </el-table-column>
 
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="viewDetail(row.id)">
-              详情
-            </el-button>
-            <el-button
-              v-if="row.status === 'PENDING'"
-              link
-              type="success"
-              size="small"
-              @click="handlePay(row)"
-            >
-              支付
-            </el-button>
-            <el-button
-              v-if="canCancel(row.status)"
-              link
-              type="danger"
-              size="small"
-              @click="handleCancel(row)"
-            >
-              取消
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          <el-table-column label="操作" width="200" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" size="small" @click="viewDetail(row.id)">
+                详情
+              </el-button>
+              <el-button
+                v-if="row.status === 'PENDING'"
+                link
+                type="success"
+                size="small"
+                @click="handlePay(row)"
+              >
+                支付
+              </el-button>
+              <el-button
+                v-if="canCancel(row.status)"
+                link
+                type="danger"
+                size="small"
+                @click="handleCancel(row)"
+              >
+                取消
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
 
-      <el-pagination
-        v-model:current-page="queryForm.page"
-        v-model:page-size="queryForm.size"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        background
-        @size-change="fetchOrders"
-        @current-change="fetchOrders"
-      />
+        <el-pagination
+          v-model:current-page="queryForm.page"
+          v-model:page-size="queryForm.size"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+          @size-change="fetchOrders"
+          @current-change="fetchOrders"
+        />
+      </template>
     </div>
 
-    <!-- Create Order Dialog -->
+    <!-- Create Order Dialog (商品明细 + 可选券 + 备注) -->
     <el-dialog
       v-model="dialogVisible"
       title="创建订单"
-      width="460px"
+      width="560px"
       destroy-on-close
     >
       <el-form ref="formRef" :model="orderForm" :rules="formRules" label-width="90px">
-        <el-form-item label="用户 ID" prop="userId">
-          <el-input-number
-            v-model="orderForm.userId"
-            :min="1"
-            placeholder="请输入用户ID"
-            style="width: 100%"
-          />
+        <el-form-item
+          v-for="(row, index) in orderForm.items"
+          :key="index"
+          :label="index === 0 ? '商品明细' : ''"
+          prop="items"
+        >
+          <div class="item-row">
+            <el-select
+              v-model="row.productId"
+              filterable
+              placeholder="选择商品"
+              style="flex: 1"
+              @change="validateForm"
+            >
+              <el-option
+                v-for="p in productOptions"
+                :key="p.id"
+                :value="p.id"
+                :label="`${p.name}（¥${Number(p.price).toFixed(2)}，库存 ${p.stock}）`"
+                :disabled="p.status !== 'ON_SALE'"
+              />
+            </el-select>
+            <el-input-number v-model="row.quantity" :min="1" :max="9999" />
+            <el-button
+              :icon="Delete"
+              circle
+              plain
+              type="danger"
+              size="small"
+              :disabled="orderForm.items.length <= 1"
+              @click="removeItem(index)"
+            />
+          </div>
         </el-form-item>
-        <el-form-item label="订单金额" prop="totalAmount">
-          <el-input-number
-            v-model="orderForm.totalAmount"
-            :min="0.01"
-            :precision="2"
-            :step="1"
-            placeholder="请输入金额"
-            style="width: 100%"
-          />
+        <el-form-item label=" ">
+          <div class="item-toolbar">
+            <el-button :icon="Plus" @click="addItem">添加商品</el-button>
+            <span class="estimate-text">预估金额：<b class="amount">{{ formatAmount(estimatedAmount) }}</b></span>
+          </div>
         </el-form-item>
+
+        <el-form-item label="优惠券" prop="couponId">
+          <el-select
+            v-model="orderForm.couponId"
+            clearable
+            placeholder="选择优惠券（可选）"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="c in unusedCoupons"
+              :key="c.id"
+              :value="c.id"
+              :label="`${c.name}（减 ¥${Number(c.discount).toFixed(2)}，满 ¥${Number(c.minAmount).toFixed(2)}）`"
+            />
+          </el-select>
+          <div class="coupon-hint">最终金额以服务端结算为准</div>
+        </el-form-item>
+
         <el-form-item label="备注" prop="remark">
           <el-input
             v-model="orderForm.remark"
@@ -200,16 +235,24 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Refresh, Timer } from '@element-plus/icons-vue'
+import { Plus, Search, Refresh, Timer, Delete } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
-import dayjs from 'dayjs'
+import PageHeader from '@/components/PageHeader.vue'
+import StatusTag from '@/components/StatusTag.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useOrderApi } from '@/api/orders'
+import { useProductApi } from '@/api/products'
+import { useCouponApi } from '@/api/coupons'
 import { useRateLimit } from '@/composables/useRateLimit'
-import type { Order, OrderStatus } from '@/types'
+import { ORDER_STATUS } from '@/constants/statusMaps'
+import { formatAmount, formatDate } from '@/utils/format'
+import type { Order, OrderStatus, Product, UserCoupon } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const { getOrders, createOrder, payOrder, cancelOrder } = useOrderApi()
+const { getProducts } = useProductApi()
+const { myCoupons } = useCouponApi()
 
 // 订单创建防重复提交（对应后端 Redisson 分布式锁：同一用户5秒内禁止重复提交）
 const { isLimited: orderCreateLimited, countdown: orderCreateCountdown, startCountdown: startOrderLock } = useRateLimit()
@@ -232,21 +275,52 @@ if (route.query.userId) {
   queryForm.userId = Number(route.query.userId)
 }
 
-const orderForm = reactive({
-  userId: undefined as number | undefined,
-  totalAmount: undefined as number | undefined,
+// 商品选项（创建订单弹窗用，最多加载 100 条）
+const productOptions = ref<Product[]>([])
+const unusedCoupons = ref<UserCoupon[]>([])
+const loadingOptions = ref(false)
+
+const productMap = computed(() => {
+  const m = new Map<number, Product>()
+  productOptions.value.forEach(p => m.set(p.id, p))
+  return m
+})
+
+interface OrderItemRow {
+  productId: number | undefined
+  quantity: number
+}
+
+const orderForm = reactive<{
+  items: OrderItemRow[]
+  couponId: number | undefined
+  remark: string
+}>({
+  items: [{ productId: undefined, quantity: 1 }],
+  couponId: undefined,
   remark: '',
 })
 
 const formRef = ref<FormInstance>()
 
 const formRules: FormRules = {
-  userId: [{ required: true, message: '请输入用户ID', trigger: 'blur' }],
-  totalAmount: [{ required: true, message: '请输入订单金额', trigger: 'blur' }],
-}
-
-const orderStatusMap: Record<string, string> = {
-  PENDING: '待支付', PAID: '已支付', SHIPPED: '已发货', COMPLETED: '已完成', CANCELLED: '已取消'
+  items: [
+    {
+      validator: (_rule, value: OrderItemRow[], callback) => {
+        if (!value || value.length === 0) {
+          callback(new Error('请至少添加一种商品'))
+          return
+        }
+        const invalid = value.some(row => !row.productId)
+        if (invalid) {
+          callback(new Error('请为每一行选择商品'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
 }
 
 const orderStatuses = [
@@ -257,28 +331,25 @@ const orderStatuses = [
   { label: '已取消', value: 'CANCELLED' },
 ]
 
-const statusTabs = [
-  { label: '全部', value: '', color: '#909399' },
-  { label: '待支付', value: 'PENDING', color: '#E6A23C' },
-  { label: '已支付', value: 'PAID', color: '#409EFF' },
-  { label: '已发货', value: 'SHIPPED', color: '#909399' },
-  { label: '已完成', value: 'COMPLETED', color: '#67C23A' },
-  { label: '已取消', value: 'CANCELLED', color: '#F56C6C' },
+const statusTabs: { label: string; value: OrderStatus | '' }[] = [
+  { label: '全部', value: '' },
+  { label: '待支付', value: 'PENDING' },
+  { label: '已支付', value: 'PAID' },
+  { label: '已发货', value: 'SHIPPED' },
+  { label: '已完成', value: 'COMPLETED' },
+  { label: '已取消', value: 'CANCELLED' },
 ]
 
-function getStatusType(status: string) {
-  const map: Record<string, string> = {
-    PENDING: 'warning', PAID: 'primary', SHIPPED: 'info', COMPLETED: 'success', CANCELLED: 'danger'
-  }
-  return (map[status] || 'info') as 'warning' | 'primary' | 'info' | 'success' | 'danger'
-}
+/** 前端预估金额 = Σ price × qty（仅预览，最终以服务端结算为准） */
+const estimatedAmount = computed(() =>
+  orderForm.items.reduce((sum, row) => {
+    const p = row.productId ? productMap.value.get(row.productId) : undefined
+    return sum + (p ? Number(p.price) * (row.quantity || 0) : 0)
+  }, 0)
+)
 
 function canCancel(status: string) {
   return status !== 'COMPLETED' && status !== 'CANCELLED'
-}
-
-function formatDate(d: string) {
-  return dayjs(d).format('YYYY-MM-DD HH:mm')
 }
 
 async function fetchOrders() {
@@ -311,8 +382,7 @@ function handleReset() {
   fetchOrders()
 }
 
-function quickFilter(status: OrderStatus | '') {
-  queryForm.status = status
+function quickFilter() {
   queryForm.page = 1
   fetchOrders()
 }
@@ -321,9 +391,53 @@ function viewDetail(id: number) {
   router.push(`/orders/${id}`)
 }
 
-function openCreateDialog() {
-  Object.assign(orderForm, { userId: undefined, totalAmount: undefined, remark: '' })
+async function loadProducts() {
+  try {
+    const res = await getProducts({ page: 1, size: 100 })
+    productOptions.value = res.records
+  } catch {
+    productOptions.value = []
+  }
+}
+
+async function loadMyCoupons() {
+  loadingOptions.value = true
+  try {
+    unusedCoupons.value = await myCoupons('UNUSED')
+  } catch {
+    unusedCoupons.value = []
+  } finally {
+    loadingOptions.value = false
+  }
+}
+
+async function openCreateDialog() {
+  orderForm.items = [{ productId: undefined, quantity: 1 }]
+  orderForm.couponId = undefined
+  orderForm.remark = ''
   dialogVisible.value = true
+  if (productOptions.value.length === 0) {
+    await loadProducts()
+  }
+  await loadMyCoupons()
+}
+
+function addItem() {
+  if (orderForm.items.length >= 50) {
+    ElMessage.warning('单笔订单最多 50 种商品')
+    return
+  }
+  orderForm.items.push({ productId: undefined, quantity: 1 })
+}
+
+function removeItem(index: number) {
+  if (orderForm.items.length <= 1) return
+  orderForm.items.splice(index, 1)
+  validateForm()
+}
+
+function validateForm() {
+  formRef.value?.validate().catch(() => undefined)
 }
 
 async function handleCreateOrder() {
@@ -334,11 +448,19 @@ async function handleCreateOrder() {
 
   submitting.value = true
   try {
-    await createOrder({
-      userId: orderForm.userId!,
-      totalAmount: orderForm.totalAmount!,
-      remark: orderForm.remark || undefined,
-    })
+    const items = orderForm.items
+      .filter(row => row.productId !== undefined)
+      .map(row => ({ productId: row.productId!, quantity: row.quantity }))
+
+    // Idempotency-Key 请求级幂等（同 key 重复请求返回 1103）
+    await createOrder(
+      {
+        items,
+        couponId: orderForm.couponId || undefined,
+        remark: orderForm.remark || undefined,
+      },
+      { headers: { 'Idempotency-Key': crypto.randomUUID() } }
+    )
     ElMessage.success('订单创建成功')
     dialogVisible.value = false
     fetchOrders()
@@ -354,7 +476,7 @@ async function handleCreateOrder() {
 
 async function handlePay(order: Order) {
   await ElMessageBox.confirm(
-    `确定要支付订单 ${order.orderNo} 吗？金额：¥${Number(order.totalAmount).toFixed(2)}`,
+    `确定要支付订单 ${order.orderNo} 吗？金额：${formatAmount(order.finalAmount ?? order.totalAmount)}`,
     '确认支付',
     { type: 'warning', confirmButtonText: '确认支付' }
   )
@@ -384,57 +506,47 @@ onMounted(fetchOrders)
   gap: 16px;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .filter-card {
   padding: 16px 20px 0;
 }
 
 .status-tabs {
   display: flex;
-  gap: 8px;
   flex-wrap: wrap;
 }
 
-.status-tab {
+.item-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
-  border-radius: 20px;
-  cursor: pointer;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  gap: 8px;
+  width: 100%;
+}
+
+.item-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.estimate-text {
   font-size: 13px;
-  color: var(--text-regular);
-  transition: var(--transition);
+  color: var(--text-secondary);
 }
 
-.status-tab:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.status-tab.active {
-  background: var(--primary-light);
-  border-color: var(--primary);
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.tab-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.coupon-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-top: 4px;
 }
 
 .amount {
   color: var(--danger);
   font-weight: 600;
+}
+
+.text-secondary {
+  color: var(--text-secondary);
 }
 </style>
