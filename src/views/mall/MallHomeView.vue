@@ -82,9 +82,14 @@
               <div class="product-name" :title="p.name">{{ p.name }}</div>
               <div class="product-price">{{ formatAmount(p.price) }}</div>
               <div class="product-meta">库存 {{ p.stock }} 件</div>
-              <el-button type="primary" round class="buy-btn" @click="buyNow(p)">
-                立即购买
-              </el-button>
+              <div class="product-actions">
+                <el-button round class="add-cart-btn" :icon="ShoppingCart" @click="addToCart(p)">
+                  加入购物车
+                </el-button>
+                <el-button type="primary" round class="buy-btn" @click="buyNow(p)">
+                  立即购买
+                </el-button>
+              </div>
             </div>
           </div>
         </div>
@@ -99,23 +104,41 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
-import { Clock, Goods } from '@element-plus/icons-vue'
+import { Clock, Goods, ShoppingCart } from '@element-plus/icons-vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ProductImage from '@/components/ProductImage.vue'
 import { useProductApi } from '@/api/products'
 import { useSeckillApi } from '@/api/seckill'
+import { useCartApi } from '@/api/cart'
 import { formatAmount, formatAmountPlain } from '@/utils/format'
 import type { Product, SeckillActivity } from '@/types'
 
 const router = useRouter()
 const { getProducts } = useProductApi()
 const { listActivities } = useSeckillApi()
+const { addCart } = useCartApi()
 
 const productsLoading = ref(false)
 const seckillLoading = ref(false)
 const products = ref<Product[]>([])
 const seckillActs = ref<SeckillActivity[]>([])
+
+/** 加入购物车（默认 1 件） */
+async function addToCart(p: Product) {
+  try {
+    await addCart(p.id, 1)
+    ElMessage.success(`已加入购物车：${p.name}`)
+  } catch {
+    // 错误提示已由 request 拦截器统一处理
+  }
+}
+
+/** 立即购买：跳结算确认页（单商品快捷链路） */
+function buyNow(p: Product) {
+  router.push({ path: '/mall/checkout', query: { productId: String(p.id), qty: '1' } })
+}
 
 /** 秒杀倒计时（简单展示：剩余 X天X小时 / X小时X分 / 已结束） */
 function countdownText(endTime: string): string {
@@ -148,11 +171,6 @@ async function fetchData() {
     seckillLoading.value = false
     productsLoading.value = false
   }
-}
-
-/** 立即购买：跳 /mall/orders?productId=N，创建订单弹窗按 query 预选商品 */
-function buyNow(p: Product) {
-  router.push({ path: '/mall/orders', query: { productId: p.id } })
 }
 
 function scrollToProducts() {
@@ -386,9 +404,20 @@ onMounted(fetchData)
   color: var(--text-secondary);
 }
 
-.buy-btn {
+.product-actions {
+  display: flex;
+  gap: 8px;
   margin-top: 6px;
-  width: 100%;
+}
+
+.add-cart-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+.buy-btn {
+  flex: 1;
+  min-width: 0;
 }
 
 @media (max-width: 768px) {

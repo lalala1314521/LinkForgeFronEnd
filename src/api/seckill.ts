@@ -18,6 +18,14 @@ export function useSeckillApi() {
   const getMyOrders = () =>
     get<SeckillOrder[]>('/seckill/orders/mine')
 
+  /** 秒杀订单支付（PENDING→PAID，发积分） */
+  const payOrder = (orderNo: string) =>
+    post<void>(`/seckill/orders/${orderNo}/pay`)
+
+  /** 秒杀订单取消（PENDING→CANCELLED，回补库存释放名额） */
+  const cancelOrder = (orderNo: string) =>
+    post<void>(`/seckill/orders/${orderNo}/cancel`)
+
   /** 管理端：创建活动 */
   const createActivity = (data: {
     name: string
@@ -42,6 +50,8 @@ export function useSeckillApi() {
     doSeckill,
     getOrderStatus,
     getMyOrders,
+    payOrder,
+    cancelOrder,
     createActivity,
     queryActivities,
     updateActivityStatus,

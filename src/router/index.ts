@@ -98,6 +98,20 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/mall/MallHomeView.vue'),
         meta: { title: '商城首页' },
       },
+      // 购物车（USER 商城端）
+      {
+        path: 'cart',
+        name: 'MallCart',
+        component: () => import('@/views/mall/CartView.vue'),
+        meta: { title: '购物车' },
+      },
+      // 结算确认（?from=cart 多商品 / ?productId=&qty= 立即购买单商品）
+      {
+        path: 'checkout',
+        name: 'MallCheckout',
+        component: () => import('@/views/mall/CheckoutView.vue'),
+        meta: { title: '结算' },
+      },
       // 秒杀（复用 SeckillView：USER 视角=抢购列表）
       {
         path: 'seckill',

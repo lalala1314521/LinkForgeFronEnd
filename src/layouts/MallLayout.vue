@@ -36,6 +36,15 @@
         </div>
 
         <div class="header-right">
+          <!-- 购物车入口（角标显示数量） -->
+          <el-tooltip content="购物车" placement="bottom">
+            <el-badge :value="cartCount" :hidden="cartCount === 0" :max="99" class="cart-badge">
+              <el-button circle link size="large" @click="router.push('/mall/cart')">
+                <el-icon size="20"><ShoppingCart /></el-icon>
+              </el-button>
+            </el-badge>
+          </el-tooltip>
+
           <!-- Theme Toggle -->
           <el-tooltip :content="isDark ? '切换亮色模式' : '切换深色模式'" placement="bottom">
             <el-button circle link size="large" @click="appStore.toggleTheme">
@@ -113,18 +122,42 @@
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Link, Sunny, Moon, ArrowDown, User, SwitchButton, Menu } from '@element-plus/icons-vue'
+import { Link, Sunny, Moon, ArrowDown, User, SwitchButton, Menu, ShoppingCart } from '@element-plus/icons-vue'
 import AppAvatar from '@/components/AppAvatar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
+import { useCartApi } from '@/api/cart'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
+const { getCount } = useCartApi()
 
 const isDark = computed(() => appStore.theme === 'dark')
 const mobileDrawer = ref(false)
+
+/** 购物车商品总数（导航角标） */
+const cartCount = ref(0)
+
+async function refreshCartCount() {
+  try {
+    cartCount.value = await getCount()
+  } catch {
+    cartCount.value = 0
+  }
+}
+
+// 路由变化（进入商城域）时刷新购物车角标
+watch(
+  () => route.path,
+  () => {
+    if (authStore.isLoggedIn && route.path.startsWith('/mall')) {
+      refreshCartCount()
+    }
+  },
+  { immediate: true }
+)
 
 const navItems = [
   { path: '/mall/home', label: '首页' },

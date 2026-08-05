@@ -7,7 +7,7 @@
         <PageHeader title="订单管理">
           <template #actions>
             <el-tag type="info" round>共 {{ total }} 笔订单</el-tag>
-            <el-button type="primary" :icon="Plus" @click="openCreateDialog">
+            <el-button v-if="authStore.isAdmin" type="primary" :icon="Plus" @click="openCreateDialog">
               创建订单
             </el-button>
           </template>
@@ -193,9 +193,17 @@
                 <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
               </el-table-column>
 
-              <el-table-column label="操作" width="120" fixed="right">
+              <el-table-column label="操作" width="200" fixed="right">
                 <template #default="{ row }">
-                  <el-button link type="primary" size="small" @click="viewSeckillDetail(row)">
+                  <template v-if="row.status === 'PENDING'">
+                    <el-button link type="success" size="small" :loading="seckillActioning === row.orderNo" @click="handleSeckillPay(row)">
+                      支付
+                    </el-button>
+                    <el-button link type="danger" size="small" :disabled="seckillActioning === row.orderNo" @click="handleSeckillCancel(row)">
+                      取消
+                    </el-button>
+                  </template>
+                  <el-button v-else link type="primary" size="small" @click="viewSeckillDetail(row)">
                     详情
                   </el-button>
                 </template>
@@ -363,6 +371,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useOrderApi } from '@/api/orders'
 import { useProductApi } from '@/api/products'
 import { useCouponApi } from '@/api/coupons'
@@ -374,10 +383,11 @@ import type { Order, OrderStatus, Product, UserCoupon, SeckillOrder, SeckillResu
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const { getOrders, createOrder, payOrder, cancelOrder } = useOrderApi()
 const { getProducts } = useProductApi()
 const { myCoupons } = useCouponApi()
-const { getMyOrders, getOrderStatus } = useSeckillApi()
+const { getMyOrders, getOrderStatus, payOrder: paySeckillOrder, cancelOrder: cancelSeckillOrder } = useSeckillApi()
 
 // 订单创建防重复提交（对应后端 Redisson 分布式锁：同一用户5秒内禁止重复提交）
 const { isLimited: orderCreateLimited, countdown: orderCreateCountdown, startCountdown: startOrderLock } = useRateLimit()
@@ -487,6 +497,40 @@ async function fetchMySeckill() {
     mySeckillOrders.value = []
   } finally {
     seckillLoading.value = false
+  }
+}
+
+/** 秒杀单支付/取消操作中标记（防连点） */
+const seckillActioning = ref<string | null>(null)
+
+async function handleSeckillPay(order: SeckillOrder) {
+  seckillActioning.value = order.orderNo
+  try {
+    await paySeckillOrder(order.orderNo)
+    ElMessage.success('秒杀订单支付成功')
+    await fetchMySeckill()
+  } catch {
+    // 错误提示已由 request 拦截器统一处理
+  } finally {
+    seckillActioning.value = null
+  }
+}
+
+async function handleSeckillCancel(order: SeckillOrder) {
+  await ElMessageBox.confirm(
+    `确定取消秒杀订单「${order.orderNo}」吗？取消后将释放秒杀名额与库存。`,
+    '确认取消',
+    { type: 'warning', confirmButtonText: '确认取消', cancelButtonText: '再想想' }
+  )
+  seckillActioning.value = order.orderNo
+  try {
+    await cancelSeckillOrder(order.orderNo)
+    ElMessage.success('秒杀订单已取消，名额已释放')
+    await fetchMySeckill()
+  } catch {
+    // 错误提示已由 request 拦截器统一处理
+  } finally {
+    seckillActioning.value = null
   }
 }
 

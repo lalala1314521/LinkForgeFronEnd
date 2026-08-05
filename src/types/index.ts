@@ -255,7 +255,7 @@ export interface SeckillActivity {
   status: SeckillActivityStatus
 }
 
-export type SeckillOrderStatus = 'PENDING' | 'PAID' | 'FAILED'
+export type SeckillOrderStatus = 'PENDING' | 'PAID' | 'CANCELLED' | 'FAILED'
 
 export interface SeckillResult {
   orderNo: string
@@ -263,6 +263,17 @@ export interface SeckillResult {
   productId: number
   seckillPrice: number
   status: SeckillOrderStatus
+}
+
+/** 购物车条目（后端 CartItemResponse） */
+export interface CartItemResponse {
+  id: number
+  productId: number
+  productName: string
+  imageUrl?: string
+  price: number
+  quantity: number
+  subtotal: number
 }
 
 /** 我的秒杀订单（后端 SeckillOrderResponse，含活动名/商品名） */
