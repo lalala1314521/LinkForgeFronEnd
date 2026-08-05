@@ -125,12 +125,15 @@
 import { ref, computed, onMounted } from 'vue'
 import dayjs from 'dayjs'
 import type { Component } from 'vue'
-import { DataAnalysis, ArrowRight, User, UserFilled, ShoppingCart, Clock } from '@element-plus/icons-vue'
+import { DataAnalysis, ArrowRight, Goods, User, Ticket, Clock } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUserApi } from '@/api/users'
 import { useOrderApi } from '@/api/orders'
+import { useProductApi } from '@/api/products'
+import { useCouponApi } from '@/api/coupons'
+import { useSeckillApi } from '@/api/seckill'
 import { ORDER_STATUS } from '@/constants/statusMaps'
 import { formatAmount, formatDate } from '@/utils/format'
 import type { Order } from '@/types'
@@ -138,6 +141,9 @@ import type { Order } from '@/types'
 const authStore = useAuthStore()
 const { getUsers } = useUserApi()
 const { getOrders } = useOrderApi()
+const { getProducts } = useProductApi()
+const { listAvailable } = useCouponApi()
+const { queryActivities } = useSeckillApi()
 
 const statsLoading = ref(true)
 const ordersLoading = ref(true)
@@ -153,6 +159,9 @@ const greeting = computed(() => {
 })
 
 const totalUsers = ref(0)
+const totalProducts = ref(0)
+const couponCount = ref(0)
+const totalSeckillActs = ref(0)
 const activeUsers = ref(0)
 const disabledUsers = ref(0)
 const deletedUsers = ref(0)
@@ -173,39 +182,39 @@ interface StatItem {
   route: string
 }
 
-// 统计图标底色变量化（--color-*-bg），图标为组件对象（main.ts 已移除全量注册）
+// 统计卡片：商品数 / 用户数 / 优惠券（可领列表近似）/ 秒杀活动数
 const stats = computed<StatItem[]>(() => [
   {
-    label: '总用户数',
-    value: totalUsers.value,
-    icon: User,
+    label: '商品数',
+    value: totalProducts.value,
+    icon: Goods,
     color: 'var(--primary)',
     bgColor: 'var(--color-info-bg)',
-    route: '/users',
+    route: '/products',
   },
   {
-    label: '活跃用户',
-    value: activeUsers.value,
-    icon: UserFilled,
+    label: '用户数',
+    value: totalUsers.value,
+    icon: User,
     color: 'var(--success)',
     bgColor: 'var(--color-success-bg)',
     route: '/users',
   },
   {
-    label: '总订单数',
-    value: totalOrders.value,
-    icon: ShoppingCart,
+    label: '优惠券',
+    value: couponCount.value,
+    icon: Ticket,
     color: 'var(--warning)',
     bgColor: 'var(--color-warning-bg)',
-    route: '/orders',
+    route: '/coupons',
   },
   {
-    label: '待处理订单',
-    value: pendingOrders.value,
+    label: '秒杀活动',
+    value: totalSeckillActs.value,
     icon: Clock,
     color: 'var(--danger)',
     bgColor: 'var(--color-danger-bg)',
-    route: '/orders',
+    route: '/seckill',
   },
 ])
 
@@ -228,7 +237,7 @@ const orderStatusStats = computed(() => [
 
 async function fetchData() {
   try {
-    // Fetch users by status（后端无聚合接口，保持 size=1 并发统计）
+    // 用户（含状态分布）
     const [allUsers, activeRes, disabledRes, deletedRes] = await Promise.all([
       getUsers({ page: 1, size: 1 }),
       getUsers({ status: 'ACTIVE', page: 1, size: 1 }),
@@ -241,8 +250,30 @@ async function fetchData() {
     deletedUsers.value = deletedRes.total
   } catch (e) {
     console.error(e)
-  } finally {
-    statsLoading.value = false
+  }
+
+  // 商品数
+  try {
+    const res = await getProducts({ page: 1, size: 1 })
+    totalProducts.value = res.total
+  } catch (e) {
+    console.error(e)
+  }
+
+  // 优惠券数（后端无券模板分页，用可领列表 length 近似，仅展示口径）
+  try {
+    const list = await listAvailable()
+    couponCount.value = list.length
+  } catch (e) {
+    console.error(e)
+  }
+
+  // 秒杀活动数（管理端分页 total）
+  try {
+    const res = await queryActivities({ page: 1, size: 1 })
+    totalSeckillActs.value = res.total
+  } catch (e) {
+    console.error(e)
   }
 
   try {
@@ -265,6 +296,7 @@ async function fetchData() {
   } catch (e) {
     console.error(e)
   } finally {
+    statsLoading.value = false
     ordersLoading.value = false
   }
 }

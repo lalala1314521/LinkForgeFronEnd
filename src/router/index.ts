@@ -17,8 +17,12 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
-    meta: { requiresAuth: true },
-    redirect: '/dashboard',
+    // 管理后台：仅 ADMIN 可访问（USER 撞此树被守卫弹回商城）
+    meta: { requiresAuth: true, roles: ['ADMIN'] },
+    redirect: () => {
+      const authStore = useAuthStore()
+      return authStore.isAdmin ? '/dashboard' : '/mall/home'
+    },
     children: [
       {
         path: 'dashboard',
@@ -83,6 +87,54 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/mall',
+    component: () => import('@/layouts/MallLayout.vue'),
+    meta: { requiresAuth: true },
+    redirect: '/mall/home',
+    children: [
+      {
+        path: 'home',
+        name: 'MallHome',
+        component: () => import('@/views/mall/MallHomeView.vue'),
+        meta: { title: '商城首页' },
+      },
+      // 秒杀（复用 SeckillView：USER 视角=抢购列表）
+      {
+        path: 'seckill',
+        name: 'MallSeckill',
+        component: () => import('@/views/seckill/SeckillView.vue'),
+        meta: { title: '限时秒杀' },
+      },
+      // 订单（复用 OrderListView：USER 后端强制查本人单；含「我的秒杀」tab）
+      {
+        path: 'orders',
+        name: 'MallOrderList',
+        component: () => import('@/views/orders/OrderListView.vue'),
+        meta: { title: '我的订单' },
+      },
+      {
+        path: 'orders/:id',
+        name: 'MallOrderDetail',
+        component: () => import('@/views/orders/OrderDetailView.vue'),
+        meta: { title: '订单详情' },
+      },
+      // 优惠券（复用 CouponCenterView）
+      {
+        path: 'coupons',
+        name: 'MallCouponCenter',
+        component: () => import('@/views/coupons/CouponCenterView.vue'),
+        meta: { title: '优惠券中心' },
+      },
+      // 个人中心（复用 ProfileView）
+      {
+        path: 'profile',
+        name: 'MallProfile',
+        component: () => import('@/views/profile/ProfileView.vue'),
+        meta: { title: '个人中心' },
+      },
+    ],
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/error/NotFoundView.vue'),
@@ -100,7 +152,11 @@ const router = createRouter({
 })
 
 // ===========================
-// Navigation Guard
+// Navigation Guard（角色化）
+// 1. requiresAuth && 未登录 → /login?redirect=...
+// 2. meta.roles 与当前角色不符 → ADMIN 回 /dashboard，USER 回 /mall/home
+// 3. 已登录访问 /login /register → 按角色跳首页
+// 4. 其余放行
 // ===========================
 
 router.beforeEach((to, _from, next) => {
@@ -108,7 +164,7 @@ router.beforeEach((to, _from, next) => {
 
   // Set page title
   if (to.meta?.title) {
-    document.title = `${to.meta.title} - 参考管理系统`
+    document.title = `${to.meta.title} - LinkForge`
   }
 
   const requiresAuth = to.meta?.requiresAuth !== false
@@ -118,8 +174,16 @@ router.beforeEach((to, _from, next) => {
     return
   }
 
+  // 角色校验（meta.roles 会合并父级路由的 roles）
+  const requiredRoles = to.meta?.roles as string[] | undefined
+  if (requiredRoles && requiredRoles.length > 0 && !requiredRoles.includes(authStore.role)) {
+    // 角色不符：ADMIN 回后台，USER 回商城（等效 403）
+    next(authStore.isAdmin ? { path: '/dashboard' } : { path: '/mall/home' })
+    return
+  }
+
   if (!requiresAuth && authStore.isLoggedIn && (to.name === 'Login' || to.name === 'Register')) {
-    next({ name: 'Dashboard' })
+    next(authStore.isAdmin ? { path: '/dashboard' } : { path: '/mall/home' })
     return
   }
 

@@ -1,120 +1,135 @@
 <template>
   <div class="auth-page">
-    <div class="auth-bg">
-      <div class="circle circle-1"></div>
-      <div class="circle circle-2"></div>
+    <!-- Left Hero（<768px 折叠为顶部窄横幅） -->
+    <div class="auth-hero">
+      <div class="hero-glow glow-1"></div>
+      <div class="hero-glow glow-2"></div>
+      <div class="hero-inner">
+        <div class="hero-brand">
+          <el-icon size="30" color="#fff"><Link /></el-icon>
+          <span class="hero-brand-name">LinkForge</span>
+        </div>
+        <h1 class="hero-title">开启你的 LinkForge 之旅</h1>
+        <p class="hero-desc">注册账户，畅享商城购物与限时秒杀</p>
+        <ul class="hero-points">
+          <li><el-icon><CircleCheckFilled /></el-icon>注册即享商城浏览与下单能力</li>
+          <li><el-icon><CircleCheckFilled /></el-icon>秒杀抢购 · 我的订单 · 优惠券中心</li>
+          <li><el-icon><CircleCheckFilled /></el-icon>深色模式 · 响应式布局 · 多端适配</li>
+        </ul>
+      </div>
     </div>
 
-    <div class="auth-container">
-      <div class="auth-header">
-        <div class="auth-logo">
-          <el-icon size="36" color="var(--primary)"><DocumentChecked /></el-icon>
+    <!-- Right Form -->
+    <div class="auth-main">
+      <div class="auth-container">
+        <div class="auth-header">
+          <div class="auth-logo">
+            <el-icon size="36" color="var(--primary)"><Link /></el-icon>
+          </div>
+          <h1 class="auth-title">创建账户</h1>
+          <p class="auth-subtitle">加入 LinkForge</p>
         </div>
-        <h1 class="auth-title">创建账户</h1>
-        <p class="auth-subtitle">加入参考管理系统</p>
-      </div>
 
-      <el-card class="auth-card" shadow="always">
-        <h2 class="form-title">注册新账户</h2>
-
-        <el-form
-          ref="formRef"
-          :model="form"
-          :rules="rules"
-          label-position="top"
-        >
-          <el-form-item label="用户名" prop="username">
-            <el-input
-              v-model="form.username"
-              placeholder="3-50位，字母数字下划线"
-              size="large"
-              :prefix-icon="User"
-              clearable
-            />
-          </el-form-item>
-
-          <el-form-item label="密码" prop="password">
-            <el-input
-              v-model="form.password"
-              type="password"
-              placeholder="8位以上，含大小写字母和数字"
-              size="large"
-              :prefix-icon="Lock"
-              show-password
-            />
-          </el-form-item>
-
-          <el-form-item label="昵称" prop="nickname">
-            <el-input
-              v-model="form.nickname"
-              placeholder="可选，显示名称"
-              size="large"
-              :prefix-icon="EditPen"
-              clearable
-            />
-          </el-form-item>
-
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="手机号" prop="phone">
-                <el-input
-                  v-model="form.phone"
-                  placeholder="可选"
-                  size="large"
-                  :prefix-icon="Phone"
-                  clearable
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="邮箱" prop="email">
-                <el-input
-                  v-model="form.email"
-                  placeholder="可选"
-                  size="large"
-                  :prefix-icon="Message"
-                  clearable
-                />
-              </el-form-item>
-            </el-col>
-          </el-row>
-
-          <el-button
-            type="primary"
-            size="large"
-            class="submit-btn"
-            :loading="loading"
-            :disabled="isLimited"
-            @click="handleRegister"
+        <el-card class="auth-card" shadow="always">
+          <el-form
+            ref="formRef"
+            :model="form"
+            :rules="rules"
+            label-position="top"
           >
-            <template v-if="isLimited">
-              <el-icon class="is-loading"><Timer /></el-icon>
-              {{ limitText }}
-            </template>
-            <template v-else>
-              {{ loading ? '注册中...' : '立即注册' }}
-            </template>
-          </el-button>
-        </el-form>
+            <el-form-item label="用户名" prop="username">
+              <el-input
+                v-model="form.username"
+                placeholder="3-50位，字母数字下划线"
+                size="large"
+                :prefix-icon="User"
+                clearable
+              />
+            </el-form-item>
 
-        <!-- 限流提示（后端注册接口：10次/小时/IP 限制） -->
-        <el-alert
-          v-if="isLimited"
-          class="rate-limit-alert"
-          type="warning"
-          :closable="false"
-          show-icon
-          title="注册请求受限"
-          :description="`注册接口限频 10次/小时，请勿频繁注册。${limitText}`"
-        />
+            <el-form-item label="密码" prop="password">
+              <el-input
+                v-model="form.password"
+                type="password"
+                placeholder="8位以上，含大小写字母和数字"
+                size="large"
+                :prefix-icon="Lock"
+                show-password
+              />
+            </el-form-item>
 
-        <div class="form-footer">
-          <span class="footer-text">已有账户？</span>
-          <el-button link type="primary" @click="$router.push('/login')">
-            立即登录
-          </el-button>
-        </div>
-      </el-card>
+            <el-form-item label="昵称" prop="nickname">
+              <el-input
+                v-model="form.nickname"
+                placeholder="可选，显示名称"
+                size="large"
+                :prefix-icon="EditPen"
+                clearable
+              />
+            </el-form-item>
+
+            <el-row :gutter="12">
+              <el-col :xs="24" :sm="12">
+                <el-form-item label="手机号" prop="phone">
+                  <el-input
+                    v-model="form.phone"
+                    placeholder="可选"
+                    size="large"
+                    :prefix-icon="Phone"
+                    clearable
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :xs="24" :sm="12">
+                <el-form-item label="邮箱" prop="email">
+                  <el-input
+                    v-model="form.email"
+                    placeholder="可选"
+                    size="large"
+                    :prefix-icon="Message"
+                    clearable
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-button
+              type="primary"
+              size="large"
+              class="submit-btn"
+              :loading="loading"
+              :disabled="isLimited"
+              @click="handleRegister"
+            >
+              <template v-if="isLimited">
+                <el-icon class="is-loading"><Timer /></el-icon>
+                {{ limitText }}
+              </template>
+              <template v-else>
+                {{ loading ? '注册中...' : '立即注册' }}
+              </template>
+            </el-button>
+          </el-form>
+
+          <!-- 限流提示（后端注册接口：10次/小时/IP 限制） -->
+          <el-alert
+            v-if="isLimited"
+            class="rate-limit-alert"
+            type="warning"
+            :closable="false"
+            show-icon
+            title="注册请求受限"
+            :description="`注册接口限频 10次/小时，请勿频繁注册。${limitText}`"
+          />
+
+          <div class="form-footer">
+            <span class="footer-text">已有账户？</span>
+            <el-button link type="primary" @click="$router.push('/login')">
+              立即登录
+            </el-button>
+          </div>
+        </el-card>
+      </div>
     </div>
   </div>
 </template>
@@ -123,7 +138,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock, EditPen, Phone, Message, Timer, DocumentChecked } from '@element-plus/icons-vue'
+import { User, Lock, EditPen, Phone, Message, Timer, Link, CircleCheckFilled } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useUserApi } from '@/api/users'
 import { useRateLimit } from '@/composables/useRateLimit'
@@ -203,73 +218,121 @@ async function handleRegister() {
 .auth-page {
   min-height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  /* 背景收敛：--gradient-page 氛围光，替代写死渐变 */
   background-color: var(--bg-page);
   background-image: var(--gradient-page);
 }
 
-.auth-bg {
+/* ============ Left Hero ============ */
+.auth-hero {
+  flex: 1.1;
+  position: relative;
+  overflow: hidden;
+  background: var(--gradient-brand);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 56px;
+}
+
+.hero-glow {
   position: absolute;
-  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent);
   pointer-events: none;
 }
 
-.circle {
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.12;
+.glow-1 {
+  width: 380px;
+  height: 380px;
+  top: -120px;
+  right: -80px;
 }
 
-.circle-1 {
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, var(--primary), transparent);
-  top: -100px;
-  left: -100px;
-}
-
-.circle-2 {
+.glow-2 {
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, var(--success), transparent);
-  bottom: -80px;
-  right: -80px;
+  bottom: -100px;
+  left: 5%;
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+}
+
+.hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 40px;
+}
+
+.hero-brand-name {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.hero-title {
+  font-size: 36px;
+  font-weight: 800;
+  margin: 0 0 14px;
+  line-height: 1.3;
+}
+
+.hero-desc {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0 32px;
+}
+
+.hero-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hero-points li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* ============ Right Form ============ */
+.auth-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  min-height: 100vh;
 }
 
 .auth-container {
   width: 100%;
-  max-width: 480px;
-  padding: 20px;
-  position: relative;
-  z-index: 1;
-}
-
-@media (max-width: 520px) {
-  .auth-container {
-    max-width: none;
-    width: min(480px, 92vw);
-  }
+  max-width: 440px;
 }
 
 .auth-header {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .auth-logo {
-  width: 72px;
-  height: 72px;
-  /* 深色下自动变深，避免白块刺眼 */
+  width: 64px;
+  height: 64px;
   background: var(--bg-card);
-  border-radius: 20px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 16px;
+  margin: 0 auto 14px;
   box-shadow: 0 8px 24px rgba(79, 107, 255, 0.2);
 }
 
@@ -290,13 +353,6 @@ async function handleRegister() {
   border-radius: var(--radius-lg) !important;
   border: none !important;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1) !important;
-}
-
-.form-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 20px;
 }
 
 .submit-btn {
@@ -323,5 +379,54 @@ async function handleRegister() {
 .rate-limit-alert {
   margin-top: 12px;
   border-radius: var(--radius-sm) !important;
+}
+
+/* ============ Mobile（<768px hero 折叠为顶部窄横幅） ============ */
+@media (max-width: 767px) {
+  .auth-page {
+    flex-direction: column;
+  }
+
+  .auth-hero {
+    flex: none;
+    width: 100%;
+    padding: 28px 24px;
+    min-height: auto;
+  }
+
+  .hero-inner {
+    max-width: none;
+  }
+
+  .hero-brand {
+    margin-bottom: 16px;
+  }
+
+  .hero-brand-name {
+    font-size: 18px;
+  }
+
+  .hero-title {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .hero-desc {
+    font-size: 13px;
+    margin-bottom: 0;
+  }
+
+  .hero-points {
+    display: none;
+  }
+
+  .auth-main {
+    min-height: auto;
+    padding: 24px 16px;
+  }
+
+  .auth-container {
+    max-width: 440px;
+  }
 }
 </style>

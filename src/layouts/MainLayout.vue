@@ -6,7 +6,7 @@
       <div class="sidebar-logo">
         <el-icon size="28" color="var(--primary)"><DocumentChecked /></el-icon>
         <transition name="fade">
-          <span v-if="!appStore.sidebarCollapsed" class="logo-text">参考管理系统</span>
+          <span v-if="!appStore.sidebarCollapsed" class="logo-text">LinkForge 管理后台</span>
         </transition>
       </div>
 
@@ -58,7 +58,7 @@
     >
       <div class="sidebar-logo">
         <el-icon size="28" color="var(--primary)"><DocumentChecked /></el-icon>
-        <span class="logo-text">参考管理系统</span>
+        <span class="logo-text">LinkForge 管理后台</span>
       </div>
       <el-menu
         :default-active="activeRoute"
@@ -92,7 +92,7 @@
             <el-icon size="20"><Menu /></el-icon>
           </el-button>
           <!-- Mobile site name -->
-          <span v-if="isMobile" class="mobile-site-name">参考管理系统</span>
+          <span v-if="isMobile" class="mobile-site-name">LinkForge 管理后台</span>
           <!-- Breadcrumb (desktop) -->
           <el-breadcrumb v-else separator="/">
             <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
@@ -165,10 +165,19 @@ const currentRoute = computed(() => route)
 const activeRoute = computed(() => '/' + route.path.split('/')[1])
 
 // 菜单从路由派生（meta.title / meta.icon），消除"加路由改两处"
+// 角色过滤（防御）：子路由显式 roles 优先，否则继承父级 '/' 的 roles（ADMIN）
 const menuItems = computed(() => {
   const root = router.options.routes.find(r => r.path === '/')
+  const parentRoles = (root?.meta?.roles as string[] | undefined) ?? []
   return (root?.children ?? [])
     .filter(c => c.meta?.title && !c.meta?.hidden && c.meta?.icon)
+    .filter(c => {
+      const childRoles = c.meta?.roles as string[] | undefined
+      if (childRoles && childRoles.length > 0) {
+        return childRoles.includes(authStore.role)
+      }
+      return parentRoles.length === 0 || parentRoles.includes(authStore.role)
+    })
     .map(c => ({
       path: '/' + c.path,
       title: c.meta!.title as string,
