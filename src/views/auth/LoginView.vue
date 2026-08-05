@@ -1,111 +1,121 @@
 <template>
   <div class="auth-page">
-    <!-- Decorative Background -->
-    <div class="auth-bg">
-      <div class="circle circle-1"></div>
-      <div class="circle circle-2"></div>
-      <div class="circle circle-3"></div>
+    <!-- Left Hero（<768px 折叠为顶部窄横幅） -->
+    <div class="auth-hero">
+      <div class="hero-glow glow-1"></div>
+      <div class="hero-glow glow-2"></div>
+      <div class="hero-inner">
+        <div class="hero-brand">
+          <el-icon size="30" color="#fff"><Link /></el-icon>
+          <span class="hero-brand-name">LinkForge</span>
+        </div>
+        <h1 class="hero-title">让链接创造价值</h1>
+        <p class="hero-desc">一站式商城与秒杀管理平台，高效、安全、开箱即用</p>
+        <ul class="hero-points">
+          <li><el-icon><CircleCheckFilled /></el-icon>商品管理 · 图片上传 · 库存实时可控</li>
+          <li><el-icon><CircleCheckFilled /></el-icon>限时秒杀 · 高并发防护 · 抢购即得</li>
+          <li><el-icon><CircleCheckFilled /></el-icon>角色化界面 · 管理员与用户各司其职</li>
+        </ul>
+      </div>
     </div>
 
-    <div class="auth-container">
-      <!-- Logo Area -->
-      <div class="auth-header">
-        <div class="auth-logo">
-          <el-icon size="36" color="var(--primary)"><DocumentChecked /></el-icon>
+    <!-- Right Form -->
+    <div class="auth-main">
+      <div class="auth-container">
+        <div class="auth-header">
+          <div class="auth-logo">
+            <el-icon size="36" color="var(--primary)"><Link /></el-icon>
+          </div>
+          <h1 class="auth-title">欢迎回来</h1>
+          <p class="auth-subtitle">登录您的账户以继续</p>
         </div>
-        <h1 class="auth-title">参考管理系统</h1>
-        <p class="auth-subtitle">Reference Management System</p>
-      </div>
 
-      <!-- Login Card -->
-      <el-card class="auth-card" shadow="always">
-        <h2 class="form-title">欢迎回来</h2>
-        <p class="form-desc">登录您的账户以继续</p>
-
-        <el-form
-          ref="formRef"
-          :model="form"
-          :rules="rules"
-          label-position="top"
-          @submit.prevent="handleLogin"
-        >
-          <el-form-item label="用户名" prop="username">
-            <el-input
-              v-model="form.username"
-              placeholder="请输入用户名"
-              size="large"
-              :prefix-icon="User"
-              clearable
-              autocomplete="username"
-            />
-          </el-form-item>
-
-          <el-form-item label="密码" prop="password">
-            <el-input
-              v-model="form.password"
-              type="password"
-              placeholder="请输入密码"
-              size="large"
-              :prefix-icon="Lock"
-              show-password
-              autocomplete="current-password"
-              @keyup.enter="handleLogin"
-            />
-          </el-form-item>
-
-          <el-button
-            type="primary"
-            size="large"
-            class="submit-btn"
-            :loading="loading"
-            :disabled="isLimited"
-            @click="handleLogin"
+        <el-card class="auth-card" shadow="always">
+          <el-form
+            ref="formRef"
+            :model="form"
+            :rules="rules"
+            label-position="top"
+            @submit.prevent="handleLogin"
           >
-            <template v-if="isLimited">
-              <el-icon class="is-loading"><Timer /></el-icon>
-              {{ limitText }}
+            <el-form-item label="用户名" prop="username">
+              <el-input
+                v-model="form.username"
+                placeholder="请输入用户名"
+                size="large"
+                :prefix-icon="User"
+                clearable
+                autocomplete="username"
+              />
+            </el-form-item>
+
+            <el-form-item label="密码" prop="password">
+              <el-input
+                v-model="form.password"
+                type="password"
+                placeholder="请输入密码"
+                size="large"
+                :prefix-icon="Lock"
+                show-password
+                autocomplete="current-password"
+                @keyup.enter="handleLogin"
+              />
+            </el-form-item>
+
+            <el-button
+              type="primary"
+              size="large"
+              class="submit-btn"
+              :loading="loading"
+              :disabled="isLimited"
+              @click="handleLogin"
+            >
+              <template v-if="isLimited">
+                <el-icon class="is-loading"><Timer /></el-icon>
+                {{ limitText }}
+              </template>
+              <template v-else>
+                {{ loading ? '登录中...' : '立即登录' }}
+              </template>
+            </el-button>
+          </el-form>
+
+          <!-- 限流提示（后端 5次/分钟/IP 限制） -->
+          <el-alert
+            v-if="isLimited"
+            class="rate-limit-alert"
+            type="warning"
+            :closable="false"
+            show-icon
+            title="登录请求过于频繁"
+            :description="`为保护账户安全，登录接口限频 5次/分钟。${limitText}`"
+          />
+
+          <div class="form-footer">
+            <span class="footer-text">还没有账户？</span>
+            <el-button link type="primary" @click="$router.push('/register')">
+              立即注册
+            </el-button>
+          </div>
+
+          <!-- Demo Account Hint -->
+          <el-alert
+            class="demo-hint"
+            type="info"
+            :closable="false"
+            show-icon
+          >
+            <template #default>
+              <div class="demo-accounts">
+                <span class="hint-label">演示账户：</span>
+                <el-button link size="small" @click="fillDemo('admin', 'Test@1234')">admin / Test@1234</el-button>
+                <el-divider direction="vertical" />
+                <el-button link size="small" @click="fillDemo('testuser', 'Test@1234')">testuser / Test@1234</el-button>
+              </div>
             </template>
-            <template v-else>
-              {{ loading ? '登录中...' : '立即登录' }}
-            </template>
-          </el-button>
-        </el-form>
-
-        <!-- 限流提示（后端 5次/分钟/IP 限制） -->
-        <el-alert
-          v-if="isLimited"
-          class="rate-limit-alert"
-          type="warning"
-          :closable="false"
-          show-icon
-          title="登录请求过于频繁"
-          :description="`为保护账户安全，登录接口限频 5次/分钟。${limitText}`"
-        />
-
-        <div class="form-footer">
-          <span class="footer-text">还没有账户？</span>
-          <el-button link type="primary" @click="$router.push('/register')">
-            立即注册
-          </el-button>
-        </div>
-
-        <!-- Demo Account Hint -->
-        <el-alert
-          class="demo-hint"
-          type="info"
-          :closable="false"
-          show-icon
-        >
-          <template #default>
-            <div class="demo-accounts">
-              <span class="hint-label">演示账户：</span>
-              <el-button link size="small" @click="fillDemo('admin', 'Test@1234')">admin / Test@1234</el-button>
-              <el-divider direction="vertical" />
-              <el-button link size="small" @click="fillDemo('testuser', 'Test@1234')">testuser / Test@1234</el-button>
-            </div>
-          </template>
-        </el-alert>
-      </el-card>
+          </el-alert>
+        </el-card>
+      </div>
     </div>
   </div>
 </template>
@@ -114,7 +124,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock, Timer, DocumentChecked } from '@element-plus/icons-vue'
+import { User, Lock, Timer, Link, CircleCheckFilled } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useAuthApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
@@ -158,8 +168,9 @@ async function handleLogin() {
     authStore.setAuth(data)
     ElMessage.success(`欢迎回来，${data.nickname || data.username}！`)
 
+    // 按角色跳转：ADMIN → 管理后台，USER → 商城首页
     const redirect = route.query.redirect as string
-    router.push(redirect || '/dashboard')
+    router.push(redirect || (data.role === 'ADMIN' ? '/dashboard' : '/mall/home'))
   } catch (err: unknown) {
     // 429 限流：启动60秒倒计时（5次/分钟）
     if ((err as { isRateLimit?: boolean })?.isRateLimit) {
@@ -175,84 +186,121 @@ async function handleLogin() {
 .auth-page {
   min-height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  /* 背景收敛：--gradient-page 氛围光，替代写死渐变 */
   background-color: var(--bg-page);
   background-image: var(--gradient-page);
 }
 
-/* Decorative circles（颜色收敛为语义变量） */
-.auth-bg {
+/* ============ Left Hero ============ */
+.auth-hero {
+  flex: 1.1;
+  position: relative;
+  overflow: hidden;
+  background: var(--gradient-brand);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 56px;
+}
+
+.hero-glow {
   position: absolute;
-  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent);
   pointer-events: none;
 }
 
-.circle {
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.12;
+.glow-1 {
+  width: 380px;
+  height: 380px;
+  top: -120px;
+  right: -80px;
 }
 
-.circle-1 {
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, var(--primary), transparent);
-  top: -100px;
-  right: -100px;
-}
-
-.circle-2 {
+.glow-2 {
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, var(--success), transparent);
-  bottom: -80px;
-  left: -80px;
+  bottom: -100px;
+  left: 5%;
 }
 
-.circle-3 {
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, var(--warning), transparent);
-  bottom: 40%;
-  right: 10%;
-}
-
-/* Container（移动端 width: min(420px, 92vw)） */
-.auth-container {
-  width: 100%;
-  max-width: 420px;
-  padding: 20px;
+.hero-inner {
   position: relative;
   z-index: 1;
+  max-width: 480px;
 }
 
-@media (max-width: 480px) {
-  .auth-container {
-    max-width: none;
-    width: min(420px, 92vw);
-  }
+.hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 40px;
 }
 
-/* Header */
-.auth-header {
-  text-align: center;
-  margin-bottom: 28px;
+.hero-brand-name {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 1px;
 }
 
-.auth-logo {
-  width: 72px;
-  height: 72px;
-  /* 深色下自动变深，避免白块刺眼 */
-  background: var(--bg-card);
-  border-radius: 20px;
+.hero-title {
+  font-size: 36px;
+  font-weight: 800;
+  margin: 0 0 14px;
+  line-height: 1.3;
+}
+
+.hero-desc {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0 32px;
+}
+
+.hero-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hero-points li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* ============ Right Form ============ */
+.auth-main {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 16px;
+  padding: 32px 20px;
+  min-height: 100vh;
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.auth-logo {
+  width: 64px;
+  height: 64px;
+  background: var(--bg-card);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
   box-shadow: 0 8px 24px rgba(79, 107, 255, 0.2);
 }
 
@@ -269,24 +317,10 @@ async function handleLogin() {
   margin: 0;
 }
 
-/* Card */
 .auth-card {
   border-radius: var(--radius-lg) !important;
   border: none !important;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1) !important;
-}
-
-.form-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 4px;
-}
-
-.form-desc {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin: 0 0 24px;
 }
 
 .submit-btn {
@@ -330,5 +364,54 @@ async function handleLogin() {
 
 .hint-label {
   color: var(--text-secondary);
+}
+
+/* ============ Mobile（<768px hero 折叠为顶部窄横幅） ============ */
+@media (max-width: 767px) {
+  .auth-page {
+    flex-direction: column;
+  }
+
+  .auth-hero {
+    flex: none;
+    width: 100%;
+    padding: 28px 24px;
+    min-height: auto;
+  }
+
+  .hero-inner {
+    max-width: none;
+  }
+
+  .hero-brand {
+    margin-bottom: 16px;
+  }
+
+  .hero-brand-name {
+    font-size: 18px;
+  }
+
+  .hero-title {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .hero-desc {
+    font-size: 13px;
+    margin-bottom: 0;
+  }
+
+  .hero-points {
+    display: none;
+  }
+
+  .auth-main {
+    min-height: auto;
+    padding: 24px 16px;
+  }
+
+  .auth-container {
+    max-width: 420px;
+  }
 }
 </style>

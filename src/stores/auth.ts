@@ -15,6 +15,9 @@ export const useAuthStore = defineStore('auth', () => {
   const userId = computed(() => user.value?.userId ?? null)
   const username = computed(() => user.value?.username ?? '')
   const nickname = computed(() => user.value?.nickname ?? user.value?.username ?? '')
+  /** 角色（旧 localStorage 无 role → ''，按 USER 处理） */
+  const role = computed(() => user.value?.role ?? '')
+  const isAdmin = computed(() => role.value === 'ADMIN')
 
   function setAuth(loginData: LoginResponse) {
     token.value = loginData.token
@@ -37,6 +40,8 @@ export const useAuthStore = defineStore('auth', () => {
     userId,
     username,
     nickname,
+    role,
+    isAdmin,
     setAuth,
     logout,
   }

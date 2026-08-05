@@ -171,6 +171,12 @@
         <el-form-item label="昵称" prop="nickname">
           <el-input v-model="userForm.nickname" placeholder="可选" />
         </el-form-item>
+        <el-form-item v-if="!isEdit && authStore.isAdmin" label="角色" prop="role">
+          <el-select v-model="userForm.role" style="width: 100%">
+            <el-option label="普通用户" value="USER" />
+            <el-option label="管理员" value="ADMIN" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="手机号" prop="phone">
           <el-input v-model="userForm.phone" placeholder="可选" />
         </el-form-item>
@@ -200,11 +206,13 @@ import StatusTag from '@/components/StatusTag.vue'
 import AppAvatar from '@/components/AppAvatar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useUserApi } from '@/api/users'
+import { useAuthStore } from '@/stores/auth'
 import { USER_STATUS } from '@/constants/statusMaps'
 import { formatDate } from '@/utils/format'
-import type { User, UserStatus, UpdateUserRequest, CreateUserRequest } from '@/types'
+import type { User, UserStatus, UserRole, UpdateUserRequest, CreateUserRequest } from '@/types'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const { getUsers, createUser, updateUser, updateUserStatus, deleteUser } = useUserApi()
 
 const loading = ref(false)
@@ -226,6 +234,7 @@ const userForm = reactive({
   username: '',
   password: '',
   nickname: '',
+  role: 'USER' as UserRole,
   phone: '',
   email: '',
 })
@@ -303,7 +312,7 @@ function viewDetail(id: number) {
 function openCreateDialog() {
   isEdit.value = false
   editId.value = null
-  Object.assign(userForm, { username: '', password: '', nickname: '', phone: '', email: '' })
+  Object.assign(userForm, { username: '', password: '', nickname: '', role: 'USER', phone: '', email: '' })
   dialogVisible.value = true
 }
 
@@ -339,6 +348,7 @@ async function handleSubmit() {
       const payload: CreateUserRequest = {
         username: userForm.username,
         password: userForm.password,
+        role: userForm.role,
       }
       if (userForm.nickname) payload.nickname = userForm.nickname
       if (userForm.phone) payload.phone = userForm.phone

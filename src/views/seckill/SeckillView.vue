@@ -3,6 +3,14 @@
     <PageHeader title="秒杀活动">
       <template #actions>
         <el-tag type="danger" round>限时抢购</el-tag>
+        <el-button
+          v-if="authStore.isAdmin"
+          type="primary"
+          :icon="Plus"
+          @click="createDialogVisible = true"
+        >
+          创建活动
+        </el-button>
       </template>
     </PageHeader>
 
@@ -30,15 +38,40 @@
 
           <div class="activity-side">
             <StatusTag :status="act.status" :map="SECKILL_STATUS" size="large" />
-            <el-button
-              type="danger"
-              round
-              :disabled="!canSeckill(act)"
-              :loading="seckillingId === act.id"
-              @click="handleSeckill(act)"
-            >
-              {{ seckillButtonText(act) }}
-            </el-button>
+            <!-- ADMIN：启动/下架管理 -->
+            <template v-if="authStore.isAdmin">
+              <el-button
+                v-if="act.status === 'CREATED'"
+                type="success"
+                round
+                :loading="statusUpdatingId === act.id"
+                @click="handleUpdateStatus(act, 'ACTIVE')"
+              >
+                启动
+              </el-button>
+              <el-button
+                v-else-if="act.status === 'ACTIVE'"
+                type="warning"
+                round
+                :loading="statusUpdatingId === act.id"
+                @click="handleUpdateStatus(act, 'ENDED')"
+              >
+                下架
+              </el-button>
+              <el-button v-else round disabled>已结束</el-button>
+            </template>
+            <!-- USER：立即抢购 -->
+            <template v-else>
+              <el-button
+                type="danger"
+                round
+                :disabled="!canSeckill(act)"
+                :loading="seckillingId === act.id"
+                @click="handleSeckill(act)"
+              >
+                {{ seckillButtonText(act) }}
+              </el-button>
+            </template>
           </div>
         </div>
       </template>
@@ -86,29 +119,42 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 创建活动弹窗（仅 ADMIN） -->
+    <SeckillCreateDialog
+      v-model="createDialogVisible"
+      @created="fetchActivities"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import SeckillCreateDialog from '@/components/SeckillCreateDialog.vue'
 import { useSeckillApi } from '@/api/seckill'
+import { useAuthStore } from '@/stores/auth'
 import { SECKILL_STATUS, SECKILL_ORDER_STATUS } from '@/constants/statusMaps'
 import { formatAmount, formatDate } from '@/utils/format'
 import type { SeckillActivity, SeckillResult } from '@/types'
 
-const { listActivities, doSeckill, getOrderStatus } = useSeckillApi()
+const authStore = useAuthStore()
+const { listActivities, doSeckill, getOrderStatus, queryActivities, updateActivityStatus } = useSeckillApi()
 
 const loading = ref(false)
 const activities = ref<SeckillActivity[]>([])
 const seckillingId = ref<number | null>(null)
 const polling = ref(false)
+const statusUpdatingId = ref<number | null>(null)
 
 const resultVisible = ref(false)
 const result = ref<SeckillResult | null>(null)
+
+const createDialogVisible = ref(false)
 
 function canSeckill(act: SeckillActivity) {
   return act.status === 'ACTIVE' && act.availableStock > 0
@@ -128,11 +174,35 @@ function seckillOrderLabel(status: string) {
 async function fetchActivities() {
   loading.value = true
   try {
-    activities.value = await listActivities()
+    if (authStore.isAdmin) {
+      // 管理端：全状态分页（含 CREATED/ACTIVE/ENDED），最多 50 条
+      const res = await queryActivities({ page: 1, size: 50 })
+      activities.value = res.records
+    } else {
+      // 用户端：仅在售 ACTIVE 活动
+      activities.value = await listActivities()
+    }
   } catch {
     activities.value = []
   } finally {
     loading.value = false
+  }
+}
+
+async function handleUpdateStatus(act: SeckillActivity, targetStatus: 'ACTIVE' | 'ENDED') {
+  const actionText = targetStatus === 'ACTIVE' ? '启动' : '下架'
+  await ElMessageBox.confirm(
+    `确定要${actionText}活动「${act.name}」吗？`,
+    '确认操作',
+    { type: 'warning', confirmButtonText: `确认${actionText}`, cancelButtonText: '取消' }
+  )
+  statusUpdatingId.value = act.id
+  try {
+    await updateActivityStatus(act.id, targetStatus)
+    ElMessage.success(`活动已${actionText}`)
+    fetchActivities()
+  } finally {
+    statusUpdatingId.value = null
   }
 }
 

@@ -104,6 +104,8 @@ export interface CreateUserRequest {
   nickname?: string
   phone?: string
   email?: string
+  /** 角色（可选，仅 ADMIN 可指定 ADMIN，否则后端强制 USER） */
+  role?: UserRole
 }
 
 /** 后端 UserUpdateRequest 无 password 字段（已核实），修改密码需后端另提供接口 */
@@ -171,6 +173,8 @@ export interface Product {
   price: number
   stock: number
   status: ProductStatus
+  /** 商品图片URL（/uploads/...，可为空） */
+  imageUrl?: string
   createdAt: string
   updatedAt: string
 }
@@ -180,6 +184,7 @@ export interface ProductCreateRequest {
   price: number
   stock: number
   status?: ProductStatus
+  imageUrl?: string
 }
 
 export interface ProductUpdateRequest {
@@ -187,6 +192,7 @@ export interface ProductUpdateRequest {
   price: number
   stock: number
   status?: ProductStatus
+  imageUrl?: string
 }
 
 export interface ProductQueryParams {
@@ -259,6 +265,21 @@ export interface SeckillResult {
   status: SeckillOrderStatus
 }
 
+/** 我的秒杀订单（后端 SeckillOrderResponse，含活动名/商品名） */
+export interface SeckillOrder {
+  orderNo: string
+  activityId: number
+  activityName: string
+  productId: number
+  productName: string
+  seckillPrice: number
+  status: SeckillOrderStatus
+  createdAt: string
+}
+
+/** 文件上传结果（后端 Result&lt;String&gt; 的 data，即相对 URL /uploads/xxx） */
+export type UploadResult = string
+
 // ===========================
 // Auth Types
 // ===========================
@@ -274,4 +295,6 @@ export interface LoginResponse {
   nickname: string
   token: string
   expiresIn: number
+  /** 角色: USER/ADMIN（旧 localStorage 无此字段 → 按 USER 处理） */
+  role: UserRole
 }

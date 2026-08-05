@@ -1,137 +1,210 @@
 <template>
   <div class="order-list-page">
-    <!-- Page Header -->
-    <PageHeader title="订单管理">
-      <template #actions>
-        <el-tag type="info" round>共 {{ total }} 笔订单</el-tag>
-        <el-button type="primary" :icon="Plus" @click="openCreateDialog">
-          创建订单
-        </el-button>
-      </template>
-    </PageHeader>
+    <el-tabs v-model="activeTab" class="order-tabs">
+      <!-- ============ 订单列表 ============ -->
+      <el-tab-pane label="订单列表" name="orders">
+        <!-- Page Header -->
+        <PageHeader title="订单管理">
+          <template #actions>
+            <el-tag type="info" round>共 {{ total }} 笔订单</el-tag>
+            <el-button type="primary" :icon="Plus" @click="openCreateDialog">
+              创建订单
+            </el-button>
+          </template>
+        </PageHeader>
 
-    <!-- Filter Bar -->
-    <div class="app-card filter-card">
-      <el-form :model="queryForm" inline>
-        <el-form-item label="用户 ID">
-          <el-input
-            v-model.number="queryForm.userId"
-            placeholder="按用户ID筛选"
-            clearable
-            type="number"
-            style="width: 140px"
-          />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="queryForm.status" clearable placeholder="全部状态" style="width: 130px">
-            <el-option v-for="s in orderStatuses" :key="s.value" :label="s.label" :value="s.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
-          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </div>
+        <!-- Filter Bar -->
+        <div class="app-card filter-card">
+          <el-form :model="queryForm" inline>
+            <el-form-item label="用户 ID">
+              <el-input
+                v-model.number="queryForm.userId"
+                placeholder="按用户ID筛选"
+                clearable
+                type="number"
+                style="width: 140px"
+              />
+            </el-form-item>
+            <el-form-item label="状态">
+              <el-select v-model="queryForm.status" clearable placeholder="全部状态" style="width: 130px">
+                <el-option v-for="s in orderStatuses" :key="s.value" :label="s.label" :value="s.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+              <el-button :icon="Refresh" @click="handleReset">重置</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
 
-    <!-- Status Quick Filter Tabs (component language) -->
-    <el-radio-group v-model="queryForm.status" class="status-tabs" @change="quickFilter">
-      <el-radio-button v-for="tab in statusTabs" :key="tab.value" :value="tab.value">
-        {{ tab.label }}
-      </el-radio-button>
-    </el-radio-group>
+        <!-- Status Quick Filter Tabs (component language) -->
+        <el-radio-group v-model="queryForm.status" class="status-tabs" @change="quickFilter">
+          <el-radio-button v-for="tab in statusTabs" :key="tab.value" :value="tab.value">
+            {{ tab.label }}
+          </el-radio-button>
+        </el-radio-group>
 
-    <!-- Table -->
-    <div class="app-card">
-      <template v-if="!loading && orders.length === 0">
-        <EmptyState description="暂无订单数据" />
-      </template>
-      <template v-else>
-        <el-table
-          v-loading="loading"
-          :data="orders"
-          stripe
-          row-key="id"
-        >
-          <el-table-column type="index" label="#" width="60" />
+        <!-- Table -->
+        <div class="app-card">
+          <template v-if="!loading && orders.length === 0">
+            <EmptyState description="暂无订单数据" />
+          </template>
+          <template v-else>
+            <el-table
+              v-loading="loading"
+              :data="orders"
+              stripe
+              row-key="id"
+            >
+              <el-table-column type="index" label="#" width="60" />
 
-          <el-table-column prop="orderNo" label="订单号" min-width="180">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="viewDetail(row.id)">
-                {{ row.orderNo }}
-              </el-button>
-            </template>
-          </el-table-column>
+              <el-table-column prop="orderNo" label="订单号" min-width="180">
+                <template #default="{ row }">
+                  <el-button link type="primary" @click="viewDetail(row.id)">
+                    {{ row.orderNo }}
+                  </el-button>
+                </template>
+              </el-table-column>
 
-          <el-table-column prop="userId" label="用户 ID" width="90">
-            <template #default="{ row }">
-              <el-tag size="small" style="cursor:pointer" @click="$router.push(`/users/${row.userId}`)">
-                #{{ row.userId }}
-              </el-tag>
-            </template>
-          </el-table-column>
+              <el-table-column prop="userId" label="用户 ID" width="90">
+                <template #default="{ row }">
+                  <el-tag size="small" style="cursor:pointer" @click="$router.push(`/users/${row.userId}`)">
+                    #{{ row.userId }}
+                  </el-tag>
+                </template>
+              </el-table-column>
 
-          <el-table-column prop="finalAmount" label="实付金额" width="130">
-            <template #default="{ row }">
-              <span class="amount">{{ formatAmount(row.finalAmount ?? row.totalAmount) }}</span>
-            </template>
-          </el-table-column>
+              <el-table-column prop="finalAmount" label="实付金额" width="130">
+                <template #default="{ row }">
+                  <span class="amount">{{ formatAmount(row.finalAmount ?? row.totalAmount) }}</span>
+                </template>
+              </el-table-column>
 
-          <el-table-column prop="status" label="状态" width="110">
-            <template #default="{ row }">
-              <StatusTag :status="row.status" :map="ORDER_STATUS" size="small" />
-            </template>
-          </el-table-column>
+              <el-table-column prop="status" label="状态" width="110">
+                <template #default="{ row }">
+                  <StatusTag :status="row.status" :map="ORDER_STATUS" size="small" />
+                </template>
+              </el-table-column>
 
-          <el-table-column prop="remark" label="备注" min-width="150">
-            <template #default="{ row }">
-              <span class="text-secondary">{{ row.remark || '—' }}</span>
-            </template>
-          </el-table-column>
+              <el-table-column prop="remark" label="备注" min-width="150">
+                <template #default="{ row }">
+                  <span class="text-secondary">{{ row.remark || '—' }}</span>
+                </template>
+              </el-table-column>
 
-          <el-table-column prop="createdAt" label="创建时间" width="170">
-            <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-          </el-table-column>
+              <el-table-column prop="createdAt" label="创建时间" width="170">
+                <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+              </el-table-column>
 
-          <el-table-column label="操作" width="200" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" size="small" @click="viewDetail(row.id)">
-                详情
-              </el-button>
-              <el-button
-                v-if="row.status === 'PENDING'"
-                link
-                type="success"
-                size="small"
-                @click="handlePay(row)"
-              >
-                支付
-              </el-button>
-              <el-button
-                v-if="canCancel(row.status)"
-                link
-                type="danger"
-                size="small"
-                @click="handleCancel(row)"
-              >
-                取消
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+              <el-table-column label="操作" width="200" fixed="right">
+                <template #default="{ row }">
+                  <el-button link type="primary" size="small" @click="viewDetail(row.id)">
+                    详情
+                  </el-button>
+                  <el-button
+                    v-if="row.status === 'PENDING'"
+                    link
+                    type="success"
+                    size="small"
+                    @click="handlePay(row)"
+                  >
+                    支付
+                  </el-button>
+                  <el-button
+                    v-if="canCancel(row.status)"
+                    link
+                    type="danger"
+                    size="small"
+                    @click="handleCancel(row)"
+                  >
+                    取消
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
 
-        <el-pagination
-          v-model:current-page="queryForm.page"
-          v-model:page-size="queryForm.size"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          background
-          @size-change="fetchOrders"
-          @current-change="fetchOrders"
-        />
-      </template>
-    </div>
+            <el-pagination
+              v-model:current-page="queryForm.page"
+              v-model:page-size="queryForm.size"
+              :page-sizes="[10, 20, 50, 100]"
+              :total="total"
+              layout="total, sizes, prev, pager, next, jumper"
+              background
+              @size-change="fetchOrders"
+              @current-change="fetchOrders"
+            />
+          </template>
+        </div>
+      </el-tab-pane>
+
+      <!-- ============ 我的秒杀 ============ -->
+      <el-tab-pane label="我的秒杀" name="seckill">
+        <PageHeader title="我的秒杀">
+          <template #actions>
+            <el-tag type="danger" round>共 {{ mySeckillOrders.length }} 笔秒杀单</el-tag>
+            <el-button :icon="Refresh" @click="fetchMySeckill">刷新</el-button>
+          </template>
+        </PageHeader>
+
+        <div class="app-card">
+          <template v-if="!seckillLoading && mySeckillOrders.length === 0">
+            <EmptyState description="暂无秒杀订单，快去秒杀专区抢购吧" />
+          </template>
+          <template v-else>
+            <el-table
+              v-loading="seckillLoading"
+              :data="mySeckillOrders"
+              stripe
+              row-key="orderNo"
+            >
+              <el-table-column type="index" label="#" width="60" />
+
+              <el-table-column prop="orderNo" label="秒杀订单号" min-width="180">
+                <template #default="{ row }">
+                  <span class="mono">{{ row.orderNo }}</span>
+                </template>
+              </el-table-column>
+
+              <el-table-column prop="activityName" label="活动名称" min-width="160">
+                <template #default="{ row }">
+                  <span>{{ row.activityName || '—' }}</span>
+                </template>
+              </el-table-column>
+
+              <el-table-column prop="productName" label="商品名称" min-width="160">
+                <template #default="{ row }">
+                  <span>{{ row.productName || '—' }}</span>
+                </template>
+              </el-table-column>
+
+              <el-table-column prop="seckillPrice" label="秒杀价" width="110">
+                <template #default="{ row }">
+                  <span class="amount">{{ formatAmount(row.seckillPrice) }}</span>
+                </template>
+              </el-table-column>
+
+              <el-table-column prop="status" label="状态" width="110">
+                <template #default="{ row }">
+                  <StatusTag :status="row.status" :map="SECKILL_ORDER_STATUS" size="small" />
+                </template>
+              </el-table-column>
+
+              <el-table-column prop="createdAt" label="创建时间" width="170">
+                <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+              </el-table-column>
+
+              <el-table-column label="操作" width="120" fixed="right">
+                <template #default="{ row }">
+                  <el-button link type="primary" size="small" @click="viewSeckillDetail(row)">
+                    详情
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
+        </div>
+      </el-tab-pane>
+    </el-tabs>
 
     <!-- Create Order Dialog (商品明细 + 可选券 + 备注) -->
     <el-dialog
@@ -228,6 +301,56 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 秒杀订单详情弹窗 -->
+    <el-dialog
+      v-model="seckillDetailVisible"
+      title="秒杀订单详情"
+      width="460px"
+      :close-on-click-modal="false"
+    >
+      <div v-if="seckillDetail" class="seckill-detail-block">
+        <div class="result-status">
+          <StatusTag :status="seckillDetail.status" :map="SECKILL_ORDER_STATUS" size="large" />
+          <span v-if="seckillDetail.status === 'PENDING'" class="pending-hint">待支付</span>
+        </div>
+        <div class="result-field">
+          <span class="result-label">秒杀订单号</span>
+          <span class="result-value mono">{{ seckillDetail.orderNo }}</span>
+        </div>
+        <div class="result-field">
+          <span class="result-label">活动名称</span>
+          <span class="result-value">{{ currentSeckillOrder?.activityName || '—' }}</span>
+        </div>
+        <div class="result-field">
+          <span class="result-label">商品名称</span>
+          <span class="result-value">{{ currentSeckillOrder?.productName || '—' }}</span>
+        </div>
+        <div class="result-field">
+          <span class="result-label">秒杀价格</span>
+          <span class="result-value price">{{ formatAmount(seckillDetail.seckillPrice) }}</span>
+        </div>
+        <div class="result-field">
+          <span class="result-label">订单状态</span>
+          <span class="result-value">{{ seckillOrderLabel(seckillDetail.status) }}</span>
+        </div>
+        <div class="result-field">
+          <span class="result-label">创建时间</span>
+          <span class="result-value">{{ formatDate(currentSeckillOrder?.createdAt) }}</span>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="seckillDetailVisible = false">关闭</el-button>
+        <el-button
+          v-if="seckillDetail && seckillDetail.status === 'PENDING'"
+          type="primary"
+          :loading="seckillPolling"
+          @click="handlePollSeckill"
+        >
+          查询订单状态
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -243,19 +366,23 @@ import EmptyState from '@/components/EmptyState.vue'
 import { useOrderApi } from '@/api/orders'
 import { useProductApi } from '@/api/products'
 import { useCouponApi } from '@/api/coupons'
+import { useSeckillApi } from '@/api/seckill'
 import { useRateLimit } from '@/composables/useRateLimit'
-import { ORDER_STATUS } from '@/constants/statusMaps'
+import { ORDER_STATUS, SECKILL_ORDER_STATUS } from '@/constants/statusMaps'
 import { formatAmount, formatDate } from '@/utils/format'
-import type { Order, OrderStatus, Product, UserCoupon } from '@/types'
+import type { Order, OrderStatus, Product, UserCoupon, SeckillOrder, SeckillResult } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const { getOrders, createOrder, payOrder, cancelOrder } = useOrderApi()
 const { getProducts } = useProductApi()
 const { myCoupons } = useCouponApi()
+const { getMyOrders, getOrderStatus } = useSeckillApi()
 
 // 订单创建防重复提交（对应后端 Redisson 分布式锁：同一用户5秒内禁止重复提交）
 const { isLimited: orderCreateLimited, countdown: orderCreateCountdown, startCountdown: startOrderLock } = useRateLimit()
+
+const activeTab = ref('orders')
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -340,6 +467,61 @@ const statusTabs: { label: string; value: OrderStatus | '' }[] = [
   { label: '已取消', value: 'CANCELLED' },
 ]
 
+// ============ 我的秒杀 ============
+const seckillLoading = ref(false)
+const mySeckillOrders = ref<SeckillOrder[]>([])
+const seckillDetailVisible = ref(false)
+const seckillDetail = ref<SeckillResult | null>(null)
+const currentSeckillOrder = ref<SeckillOrder | null>(null)
+const seckillPolling = ref(false)
+
+function seckillOrderLabel(status: string) {
+  return SECKILL_ORDER_STATUS[status]?.label ?? status
+}
+
+async function fetchMySeckill() {
+  seckillLoading.value = true
+  try {
+    mySeckillOrders.value = await getMyOrders()
+  } catch {
+    mySeckillOrders.value = []
+  } finally {
+    seckillLoading.value = false
+  }
+}
+
+function viewSeckillDetail(order: SeckillOrder) {
+  currentSeckillOrder.value = order
+  seckillDetail.value = {
+    orderNo: order.orderNo,
+    activityId: order.activityId,
+    productId: order.productId,
+    seckillPrice: order.seckillPrice,
+    status: order.status,
+  }
+  seckillDetailVisible.value = true
+}
+
+/** 查询最新秒杀订单状态（异步落库，PENDING -> PAID/FAILED） */
+async function handlePollSeckill() {
+  if (!seckillDetail.value) return
+  seckillPolling.value = true
+  try {
+    const res = await getOrderStatus(seckillDetail.value.orderNo)
+    seckillDetail.value = res
+    // 同步列表行状态
+    const row = mySeckillOrders.value.find(o => o.orderNo === res.orderNo)
+    if (row) row.status = res.status
+    if (res.status !== 'PENDING') {
+      ElMessage.success(`订单状态已更新：${seckillOrderLabel(res.status)}`)
+    }
+  } finally {
+    seckillPolling.value = false
+  }
+}
+
+// ============ 订单列表逻辑 ============
+
 /** 前端预估金额 = Σ price × qty（仅预览，最终以服务端结算为准） */
 const estimatedAmount = computed(() =>
   orderForm.items.reduce((sum, row) => {
@@ -387,8 +569,10 @@ function quickFilter() {
   fetchOrders()
 }
 
+/** 详情跳转：USER 商城上下文走 /mall/orders/:id，避免被角色守卫弹回 */
 function viewDetail(id: number) {
-  router.push(`/orders/${id}`)
+  const base = route.path.startsWith('/mall') ? '/mall/orders' : '/orders'
+  router.push(`${base}/${id}`)
 }
 
 async function loadProducts() {
@@ -411,12 +595,18 @@ async function loadMyCoupons() {
   }
 }
 
+/** 打开创建订单弹窗：支持 ?productId=N 预选商品（商城首页「立即购买」跳转） */
 async function openCreateDialog() {
-  orderForm.items = [{ productId: undefined, quantity: 1 }]
+  const preselectId = route.query.productId ? Number(route.query.productId) : undefined
+  orderForm.items = [{ productId: preselectId || undefined, quantity: 1 }]
   orderForm.couponId = undefined
   orderForm.remark = ''
   dialogVisible.value = true
   if (productOptions.value.length === 0) {
+    await loadProducts()
+  }
+  // 预选商品可能不在已加载列表，补一次精确加载
+  if (preselectId && !productMap.value.has(preselectId)) {
     await loadProducts()
   }
   await loadMyCoupons()
@@ -496,7 +686,10 @@ async function handleCancel(order: Order) {
   fetchOrders()
 }
 
-onMounted(fetchOrders)
+onMounted(() => {
+  fetchOrders()
+  fetchMySeckill()
+})
 </script>
 
 <style scoped>
@@ -504,6 +697,10 @@ onMounted(fetchOrders)
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.order-tabs :deep(.el-tabs__header) {
+  margin-bottom: 16px;
 }
 
 .filter-card {
@@ -548,5 +745,56 @@ onMounted(fetchOrders)
 
 .text-secondary {
   color: var(--text-secondary);
+}
+
+.mono {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+/* Seckill Detail Dialog */
+.seckill-detail-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.pending-hint {
+  font-size: 12px;
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.result-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.result-label {
+  color: var(--text-secondary);
+}
+
+.result-value {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.result-value.mono {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.result-value.price {
+  color: var(--danger);
+  font-weight: 700;
 }
 </style>
