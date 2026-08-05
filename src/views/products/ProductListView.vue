@@ -50,6 +50,12 @@
         >
           <el-table-column type="index" label="#" width="60" />
 
+          <el-table-column label="图片" width="80">
+            <template #default="{ row }">
+              <ProductImage :src="row.imageUrl" :size="48" />
+            </template>
+          </el-table-column>
+
           <el-table-column prop="name" label="商品名称" min-width="180">
             <template #default="{ row }">
               <span class="product-name">{{ row.name }}</span>
@@ -123,6 +129,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ProductFormDialog from '@/components/ProductFormDialog.vue'
+import ProductImage from '@/components/ProductImage.vue'
 import { useProductApi } from '@/api/products'
 import { PRODUCT_STATUS } from '@/constants/statusMaps'
 import { formatAmount, formatDate } from '@/utils/format'
@@ -185,7 +192,7 @@ function openEditDialog(product: Product) {
   dialogVisible.value = true
 }
 
-async function handleSubmit(payload: { name: string; price: number; stock: number; status: ProductStatus }) {
+async function handleSubmit(payload: { name: string; price: number; stock: number; status: ProductStatus; imageUrl?: string }) {
   submitting.value = true
   try {
     if (editingProduct.value) {

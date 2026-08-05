@@ -31,6 +31,11 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      // 上传图片静态资源（后端 /uploads/** → 本地上传目录），<img> 请求不带 Authorization
+      '/uploads': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
     },
   },
 })

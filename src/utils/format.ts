@@ -30,3 +30,13 @@ export function formatAmountPlain(value?: number | string | null): string {
   const num = Number(value ?? 0)
   return Number.isFinite(num) ? num.toFixed(2) : '0.00'
 }
+
+/**
+ * 图片 URL 归一化：后端返回相对路径 /uploads/xxx，dev 由 vite 代理转发到 8080；
+ * 空值/非 http 前缀保持原样返回（外部绝对地址 http(s) 直接可用）。
+ */
+export function resolveImageUrl(url?: string | null): string {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  return url
+}
