@@ -164,6 +164,7 @@ const navItems = [
   { path: '/mall/seckill', label: '限时秒杀' },
   { path: '/mall/orders', label: '我的订单' },
   { path: '/mall/coupons', label: '优惠券' },
+  { path: '/mall/support', label: '在线客服' },
   { path: '/mall/profile', label: '个人中心' },
 ]
 

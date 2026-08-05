@@ -146,6 +146,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/profile/ProfileView.vue'),
         meta: { title: '个人中心' },
       },
+      // 智能客服（AI+RAG 演示）
+      {
+        path: 'support',
+        name: 'MallSupport',
+        component: () => import('@/views/mall/SupportView.vue'),
+        meta: { title: '智能客服' },
+      },
     ],
   },
   {

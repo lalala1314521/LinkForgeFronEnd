@@ -32,6 +32,14 @@ export function useOrderApi() {
   const cancelOrder = (id: number) =>
     post<void>(`/orders/${id}/cancel`)
 
+  /** 发货（ADMIN）：PAID→SHIPPED */
+  const shipOrder = (id: number) =>
+    post<void>(`/orders/${id}/ship`)
+
+  /** 确认收货（本人）：SHIPPED→COMPLETED */
+  const confirmReceipt = (id: number) =>
+    post<void>(`/orders/${id}/confirm`)
+
   return {
     createOrder,
     getOrderById,
@@ -39,5 +47,7 @@ export function useOrderApi() {
     getOrdersByCursor,
     payOrder,
     cancelOrder,
+    shipOrder,
+    confirmReceipt,
   }
 }

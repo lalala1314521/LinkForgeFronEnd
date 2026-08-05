@@ -26,6 +26,10 @@ export function useSeckillApi() {
   const cancelOrder = (orderNo: string) =>
     post<void>(`/seckill/orders/${orderNo}/cancel`)
 
+  /** 秒杀订单退款（PAID→REFUNDED，回补库存+积分回退） */
+  const refundOrder = (orderNo: string) =>
+    post<void>(`/seckill/orders/${orderNo}/refund`)
+
   /** 管理端：创建活动 */
   const createActivity = (data: {
     name: string
@@ -52,6 +56,7 @@ export function useSeckillApi() {
     getMyOrders,
     payOrder,
     cancelOrder,
+    refundOrder,
     createActivity,
     queryActivities,
     updateActivityStatus,

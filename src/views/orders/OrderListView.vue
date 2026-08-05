@@ -96,7 +96,7 @@
                 <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
               </el-table-column>
 
-              <el-table-column label="操作" width="200" fixed="right">
+              <el-table-column label="操作" width="260" fixed="right">
                 <template #default="{ row }">
                   <el-button link type="primary" size="small" @click="viewDetail(row.id)">
                     详情
@@ -118,6 +118,25 @@
                     @click="handleCancel(row)"
                   >
                     取消
+                  </el-button>
+                  <el-button
+                    v-if="authStore.isAdmin && row.status === 'PAID'"
+                    link
+                    type="primary"
+                    size="small"
+                    :loading="shippingId === row.id"
+                    @click="handleShipOrder(row)"
+                  >
+                    发货
+                  </el-button>
+                  <el-button
+                    v-if="row.status === 'SHIPPED'"
+                    link
+                    type="success"
+                    size="small"
+                    @click="handleConfirmReceipt(row)"
+                  >
+                    确认收货
                   </el-button>
                 </template>
               </el-table-column>
@@ -193,7 +212,7 @@
                 <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
               </el-table-column>
 
-              <el-table-column label="操作" width="200" fixed="right">
+              <el-table-column label="操作" width="230" fixed="right">
                 <template #default="{ row }">
                   <template v-if="row.status === 'PENDING'">
                     <el-button link type="success" size="small" :loading="seckillActioning === row.orderNo" @click="handleSeckillPay(row)">
@@ -201,6 +220,11 @@
                     </el-button>
                     <el-button link type="danger" size="small" :disabled="seckillActioning === row.orderNo" @click="handleSeckillCancel(row)">
                       取消
+                    </el-button>
+                  </template>
+                  <template v-else-if="row.status === 'PAID'">
+                    <el-button link type="warning" size="small" :loading="seckillActioning === row.orderNo" @click="handleSeckillRefund(row)">
+                      退款
                     </el-button>
                   </template>
                   <el-button v-else link type="primary" size="small" @click="viewSeckillDetail(row)">
@@ -384,10 +408,10 @@ import type { Order, OrderStatus, Product, UserCoupon, SeckillOrder, SeckillResu
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const { getOrders, createOrder, payOrder, cancelOrder } = useOrderApi()
+const { getOrders, createOrder, payOrder, cancelOrder, shipOrder, confirmReceipt } = useOrderApi()
 const { getProducts } = useProductApi()
 const { myCoupons } = useCouponApi()
-const { getMyOrders, getOrderStatus, payOrder: paySeckillOrder, cancelOrder: cancelSeckillOrder } = useSeckillApi()
+const { getMyOrders, getOrderStatus, payOrder: paySeckillOrder, cancelOrder: cancelSeckillOrder, refundOrder: refundSeckillOrder } = useSeckillApi()
 
 // 订单创建防重复提交（对应后端 Redisson 分布式锁：同一用户5秒内禁止重复提交）
 const { isLimited: orderCreateLimited, countdown: orderCreateCountdown, startCountdown: startOrderLock } = useRateLimit()
@@ -502,6 +526,8 @@ async function fetchMySeckill() {
 
 /** 秒杀单支付/取消操作中标记（防连点） */
 const seckillActioning = ref<string | null>(null)
+/** 普通订单发货中标记 */
+const shippingId = ref<number | null>(null)
 
 async function handleSeckillPay(order: SeckillOrder) {
   seckillActioning.value = order.orderNo
@@ -531,6 +557,52 @@ async function handleSeckillCancel(order: SeckillOrder) {
     // 错误提示已由 request 拦截器统一处理
   } finally {
     seckillActioning.value = null
+  }
+}
+
+async function handleSeckillRefund(order: SeckillOrder) {
+  await ElMessageBox.confirm(
+    `确定对秒杀订单「${order.orderNo}」申请退款吗？退款后秒杀名额与库存将释放、积分退回。`,
+    '确认退款',
+    { type: 'warning', confirmButtonText: '确认退款', cancelButtonText: '再想想' }
+  )
+  seckillActioning.value = order.orderNo
+  try {
+    await refundSeckillOrder(order.orderNo)
+    ElMessage.success('退款成功，库存与名额已释放')
+    await fetchMySeckill()
+  } catch {
+    // 错误提示已由 request 拦截器统一处理
+  } finally {
+    seckillActioning.value = null
+  }
+}
+
+async function handleShipOrder(order: Order) {
+  shippingId.value = order.id
+  try {
+    await shipOrder(order.id)
+    ElMessage.success(`订单 ${order.orderNo} 已发货`)
+    await fetchOrders()
+  } catch {
+    // 错误提示已由 request 拦截器统一处理
+  } finally {
+    shippingId.value = null
+  }
+}
+
+async function handleConfirmReceipt(order: Order) {
+  await ElMessageBox.confirm(
+    `确认已收到订单「${order.orderNo}」的商品吗？确认后订单完成。`,
+    '确认收货',
+    { type: 'warning', confirmButtonText: '确认收货', cancelButtonText: '再等等' }
+  )
+  try {
+    await confirmReceipt(order.id)
+    ElMessage.success('确认收货成功，订单已完成')
+    await fetchOrders()
+  } catch {
+    // 错误提示已由 request 拦截器统一处理
   }
 }
 

@@ -41,5 +41,7 @@ export const SECKILL_STATUS: Record<string, StatusMap> = {
 export const SECKILL_ORDER_STATUS: Record<string, StatusMap> = {
   PENDING: { label: '待支付', type: 'warning' },
   PAID: { label: '已支付', type: 'success' },
+  CANCELLED: { label: '已取消', type: 'info' },
+  REFUNDED: { label: '已退款', type: 'danger' },
   FAILED: { label: '抢购失败', type: 'danger' },
 }

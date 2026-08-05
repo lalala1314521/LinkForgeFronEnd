@@ -68,10 +68,14 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="stock" label="库存" width="100">
+          <el-table-column prop="stock" label="库存" width="120">
             <template #default="{ row }">
-              <el-tag :type="row.stock > 0 ? 'info' : 'danger'" size="small" effect="plain">
-                {{ row.stock }}
+              <el-tag
+                :type="row.stock === 0 ? 'danger' : row.stock < 10 ? 'warning' : 'info'"
+                size="small"
+                effect="plain"
+              >
+                {{ row.stock }}{{ row.stock > 0 && row.stock < 10 ? ' · 低库存' : '' }}
               </el-tag>
             </template>
           </el-table-column>
