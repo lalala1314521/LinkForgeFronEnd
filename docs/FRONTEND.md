@@ -2,7 +2,59 @@
 
 > 本文档基于**实际代码**编写（2026-08 版本），描述双端架构、路由守卫、状态管理、样式体系与关键页面实现。
 
+## 0. 系统架构图
+
+```mermaid
+flowchart TB
+    subgraph 浏览器[浏览器]
+        U[用户]
+    end
+
+    subgraph SPA[Vue3 SPA 应用]
+        V[页面 Views<br/>auth / mall / orders / seckill / products / users / coupons / dashboard]
+        L[布局 Layouts<br/>MainLayout 管理后台 / MallLayout 商城]
+        R[路由 Router<br/>beforeEach 角色守卫]
+        S[状态 Pinia Store<br/>auth token·role / app theme]
+        A[API 层<br/>auth cart orders products seckill coupons files support users]
+        AX[Axios 封装 request.ts<br/>Bearer 注入 / 业务错误码 / 401 登出 / 限流识别]
+        RL[useRateLimit<br/>429 限流倒计时]
+        V --> L
+        L --> R
+        R --> S
+        V --> A
+        A --> AX
+        V --> RL
+    end
+
+    subgraph 服务端[服务端]
+        B[后端 Spring Boot :8080]
+        DB[(MySQL 8)]
+        RD[(Redis 7)]
+        KK[(Kafka)]
+    end
+
+    AX -->|/api 代理| B
+    AX -->|/uploads 图片代理| B
+    B --> DB
+    B --> RD
+    B --> KK
+```
+
+- **单仓库双端**：一套 Vue3 代码，通过路由布局壳区分管理后台（ADMIN）与商城（USER）
+- **请求链路**：页面 → API 模块 → Axios 拦截器（自动带 token）→ vite/nginx 代理 → 后端
+- **前端不做计价**：金额仅展示，最终以服务端计算为准（后端防篡改）
+- **限流联动**：接口 429 时 `useRateLimit` 启动倒计时，禁用按钮防止继续请求
+
 ## 1. 双端架构
+
+```mermaid
+flowchart LR
+    A[登录 / 注册] --> B{role 判断}
+    B -->|ADMIN| C[/管理后台<br/>MainLayout/]
+    B -->|USER| D[/商城<br/>MallLayout/]
+    C --> C1[dashboard · users · products<br/>orders · coupons · seckill]
+    D --> D1[home · cart · checkout · seckill<br/>orders · coupons · support · profile]
+```
 
 ```
 登录后按角色分流（LoginResponse.role 持久化到 Pinia）
@@ -40,6 +92,28 @@
 
 ## 4. 请求层（api/request.ts）
 
+```mermaid
+sequenceDiagram
+    participant V as 页面组件
+    participant ST as Pinia auth
+    participant A as api/xxx.ts
+    participant AX as Axios 拦截器
+    participant P as vite/nginx 代理
+    participant B as 后端
+
+    V->>A: 调用业务接口函数
+    A->>ST: 读取 token
+    ST-->>A: token
+    A->>AX: request({ url, method, data })
+    AX->>AX: 注入 Authorization: Bearer token
+    AX->>P: GET/POST /api/xxx
+    P->>B: 转发至 localhost:8080
+    B-->>P: Result&lt;T&gt;{ code, message, data }
+    P-->>AX: JSON 响应
+    AX->>AX: code !== 200 → ElMessage 错误提示<br/>isRateLimit → 标记限流错误<br/>HTTP 401 → 清登录态跳登录
+    AX-->>V: 返回 data（业务成功）
+```
+
 - axios 实例：`baseURL = import.meta.env.VITE_API_BASE_URL || '/api'`（相对路径，适配 vite 代理与 nginx）
 - 请求拦截器：自动注入 `Authorization: Bearer <token>`；401 时清登录态跳登录页
 - 响应拦截器：统一 `code!==200` 的 ElMessage 错误提示
@@ -75,6 +149,32 @@
 - 抢购成功 PENDING → [支付][取消]；PAID → [退款]；其余 → 详情
 - 操作后刷新列表；状态映射含 PENDING/PAID/CANCELLED/REFUNDED/FAILED
 
+### 秒杀抢购时序（前端视角）
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant S as SeckillView
+    participant RL as useRateLimit
+    participant A as api/seckill.ts
+    participant B as 后端
+
+    U->>S: 点击「立即抢购」
+    S->>A: POST /api/seckill/{activityId}
+    A->>B: 带 token 请求
+    alt 抢购成功
+        B-->>S: orderNo（PENDING）
+        S-->>U: 跳转「我的秒杀」待支付
+    else 429 限流
+        B-->>S: isRateLimit=true
+        S->>RL: startCountdown(60)
+        RL-->>S: 按钮禁用 + 「请 60 秒后重试」
+    else 已抢光 / 已参与
+        B-->>S: 1322 / 1321
+        S-->>U: ElMessage 提示
+    end
+```
+
 ### 订单操作（后台）
 - ADMIN：PENDING 支付/取消、PAID **发货**、创建订单弹窗（代下单，含券/备注）
 - USER：SHIPPED **确认收货**、详情
@@ -84,6 +184,18 @@
 - 后端 ChatProvider 路由（DeepSeek 真实模型 / Mock 规则兜底）
 
 ## 7. 构建与部署
+
+```mermaid
+flowchart TB
+    C[浏览器] -->|:80| NG[nginx 容器<br/>静态托管 dist + SPA 回退<br/>/api、/uploads 反代 backend]
+    subgraph Compose[compose 网络]
+        NG -->|/api /uploads| BE[后端容器 :8080]
+        BE --> DB[(MySQL :3306)]
+        BE --> RD[(Redis :6379)]
+        BE --> KK[(Kafka :9092)]
+    end
+    NG -->|静态资源 js/css/img| NG
+```
 
 | 命令 | 说明 |
 |------|------|
