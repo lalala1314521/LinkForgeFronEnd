@@ -104,11 +104,11 @@ sequenceDiagram
     V->>A: 调用业务接口函数
     A->>ST: 读取 token
     ST-->>A: token
-    A->>AX: request({ url, method, data })
+    A->>AX: request(url, method, data)
     AX->>AX: 注入 Authorization: Bearer token
     AX->>P: GET/POST /api/xxx
     P->>B: 转发至 localhost:8080
-    B-->>P: Result&lt;T&gt;{ code, message, data }
+    B-->>P: Result&lt;T&gt;（code, message, data）
     P-->>AX: JSON 响应
     AX->>AX: code !== 200 → ElMessage 错误提示<br/>isRateLimit → 标记限流错误<br/>HTTP 401 → 清登录态跳登录
     AX-->>V: 返回 data（业务成功）
@@ -160,7 +160,7 @@ sequenceDiagram
     participant B as 后端
 
     U->>S: 点击「立即抢购」
-    S->>A: POST /api/seckill/{activityId}
+    S->>A: POST /api/seckill/:activityId
     A->>B: 带 token 请求
     alt 抢购成功
         B-->>S: orderNo（PENDING）
